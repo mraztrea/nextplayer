@@ -51,9 +51,7 @@ class SubtitleSessionManager @Inject constructor() {
         sessionLog.add(segment)
         val current = _displaySegments.value.toMutableList()
         current.add(segment)
-        cleanupStaleSegments(current)
-        trimDisplayBuffer(current)
-        _displaySegments.value = current
+    publishDisplaySegments(current)
 
         // Clear provisional since we got a final
         _provisionalText.value = ""
@@ -86,7 +84,7 @@ class SubtitleSessionManager @Inject constructor() {
 
         _provisionalText.value = ""
         _provisionalSpeaker.value = null
-        _displaySegments.value = current
+        publishDisplaySegments(current)
     }
 
     fun onProvisional(text: String, speaker: String?, language: String?) {
@@ -125,14 +123,34 @@ class SubtitleSessionManager @Inject constructor() {
 
     fun trimDisplayBuffer() {
         val current = _displaySegments.value.toMutableList()
-        trimDisplayBuffer(current)
-        _displaySegments.value = current
+        publishDisplaySegments(current)
     }
 
     private fun trimDisplayBuffer(segments: MutableList<SubtitleSegment>) {
+        if (segments.size <= MAX_DISPLAY_SEGMENTS) {
+            return
+        }
+
+        var overflow = segments.size - MAX_DISPLAY_SEGMENTS
+        val iterator = segments.listIterator()
+
+        while (iterator.hasNext() && overflow > 0) {
+            val segment = iterator.next()
+            if (segment.status == SegmentStatus.TRANSLATED) {
+                iterator.remove()
+                overflow--
+            }
+        }
+
         while (segments.size > MAX_DISPLAY_SEGMENTS) {
             segments.removeFirst()
         }
+    }
+
+    private fun publishDisplaySegments(segments: MutableList<SubtitleSegment>) {
+        cleanupStaleSegments(segments)
+        trimDisplayBuffer(segments)
+        _displaySegments.value = segments
     }
 
     private fun cleanupStaleSegments(segments: MutableList<SubtitleSegment>) {

@@ -40,6 +40,10 @@
 - [x] T032: `PlayerViewModel` đã expose `provisionalText` liên tục cho UI
 
 ### Phase 7: US5 - Session Stability (T033-T035)
+- [x] T033: Thêm `SessionResetScheduler` để chạy soft reset mỗi 3 phút trong `core:subtitle`, tách timer khỏi `SubtitleEngineImpl`
+- [x] T034: Cập nhật `SubtitleSessionManager` để trim display buffer ưu tiên loại segment đã dịch trước, vẫn giữ session log và carryover context riêng
+- [x] T035: Cập nhật `SonioxWebSocketClient` + `SubtitleEngineImpl` để session reset theo make-before-break thực sự, không xóa overlay khi reset, và tránh reconnect rác từ socket cũ
+
 ### Phase 8: Polish (T036-T041)
 
 ## Files đã tạo mới (core:subtitle module)
@@ -79,7 +83,15 @@
 | `feature/settings/.../LocalesHelper.kt` | +helper danh sách ngôn ngữ Soniox dùng mã 2 ký tự |
 | `core/subtitle/.../SubtitleSessionManager.kt` | +clear provisional khi nhận final translation |
 | `feature/player/.../ui/SubtitleOverlay.kt` | +translation-only semantics đúng, bilingual placeholder, provisional visual |
+| `core/subtitle/.../engine/SonioxWebSocketClient.kt` | +quản lý active/draining sockets cho make-before-break reset và reconnect an toàn |
+| `core/subtitle/.../engine/SubtitleEngine.kt` | +ủy quyền reset timer cho scheduler, giữ display buffer khi soft reset |
 | `.gitignore` | +ignore patterns Kotlin/Java/universal còn thiếu |
+
+## Files mới cho Phase 7
+
+| File | Mô tả |
+|------|--------|
+| `core/subtitle/.../session/SessionResetScheduler.kt` | Scheduler reset mềm mỗi 3 phút cho phiên subtitle dài |
 
 ## Files UI mới (feature:player)
 
@@ -99,11 +111,15 @@ cd d:\Projects\Canhan\nextplayer
 
 # Compile hẹp sau Phase 5-6:
 .\gradlew.bat :core:subtitle:compileDebugKotlin :feature:player:compileDebugKotlin
+
+# Compile hẹp cho Phase 7:
+.\gradlew.bat :core:subtitle:compileDebugKotlin
 ```
 
 ## Ghi chú
 - INTERNET permission đã có trong AndroidManifest.xml
 - Module core:subtitle là NEW MODULE
 - SubtitleAudioProcessor được inject vào PlayerService nhưng chưa thêm vào ExoPlayer audio pipeline (cần thêm vào `ExoPlayer.Builder` qua custom RenderersFactory hoặc `setAudioProcessors`)
-- Phase 4-6 đã xong ở mức settings/runtime config + bilingual + provisional; Phase 7-8 (session stability, seek/pause, error UX đầy đủ) vẫn còn
+- Phase 4-7 đã xong ở mức settings/runtime config + bilingual + provisional + long-session core reset; Phase 8 (seek/pause, error UX đầy đủ) vẫn còn
 - Đã nối nút bật/tắt live subtitle vào `ControlsBottomView` và luồn callback sang `PlayerViewModel.toggleLiveSubtitle()` qua `MediaPlayerScreen`
+- Compile `:core:subtitle:compileDebugKotlin` pass sau Phase 7; còn 1 warning compiler về unnecessary safe call trong `SonioxWebSocketClient.kt` chưa ảnh hưởng build

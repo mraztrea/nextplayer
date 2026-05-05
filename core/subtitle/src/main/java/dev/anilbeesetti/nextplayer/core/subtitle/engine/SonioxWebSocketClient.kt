@@ -27,8 +27,8 @@ import kotlin.coroutines.resume
 
 @Singleton
 class SonioxWebSocketClient @Inject constructor(
-    @SubtitleScope private val okHttpClient: OkHttpClient,
-    @SubtitleScope private val scope: CoroutineScope,
+    @param:SubtitleScope private val okHttpClient: OkHttpClient,
+    @param:SubtitleScope private val scope: CoroutineScope,
 ) {
     companion object {
         private const val TAG = "SonioxWebSocketClient"
@@ -50,12 +50,29 @@ class SonioxWebSocketClient @Inject constructor(
         fun onError(message: String, isRecoverable: Boolean)
     }
 
-    private var webSocket: WebSocket? = null
+    private enum class ConnectMode {
+        INITIAL,
+        ROTATE,
+        RECONNECT,
+    }
+
+    private data class ManagedSocket(
+        val id: Long,
+        val config: SonioxSessionConfig,
+        val webSocket: WebSocket,
+    )
+
     private var config: SonioxSessionConfig? = null
     private var listener: Listener? = null
     private var keepaliveJob: Job? = null
+    private var reconnectJob: Job? = null
     private var reconnectAttempt = 0
     private var isManualStop = false
+    private var nextSocketId = 0L
+    private var activeSocket: ManagedSocket? = null
+    private val sockets = mutableMapOf<Long, WebSocket>()
+    private val drainingSocketIds = mutableSetOf<Long>()
+    private val manualCloseSocketIds = mutableSetOf<Long>()
 
     private val _status = MutableStateFlow(SubtitleEngineStatus.IDLE)
     val status: StateFlow<SubtitleEngineStatus> = _status.asStateFlow()
@@ -68,31 +85,40 @@ class SonioxWebSocketClient @Inject constructor(
         this.config = config
         isManualStop = false
         reconnectAttempt = 0
-        doConnect()
+        reconnectJob?.cancel()
+        closeAllSockets(reason = "Replacing connection")
+        openSocket(config = config, mode = ConnectMode.INITIAL)
     }
 
     fun disconnect() {
         isManualStop = true
+        reconnectJob?.cancel()
+        reconnectJob = null
         keepaliveJob?.cancel()
         keepaliveJob = null
-        webSocket?.close(1000, "User stopped")
-        webSocket = null
+        closeAllSockets(reason = "User stopped")
         _status.value = SubtitleEngineStatus.STOPPED
         listener?.onStatusChange(SubtitleEngineStatus.STOPPED)
     }
 
     fun sendAudio(pcmData: ByteArray) {
         if (_status.value != SubtitleEngineStatus.ACTIVE) return
-        webSocket?.send(pcmData.toByteString(0, pcmData.size))
+        activeSocket?.webSocket?.send(pcmData.toByteString(0, pcmData.size))
     }
 
-    fun resetConnection() {
-        Logger.logDebug(TAG, "Resetting connection for session reset")
-        keepaliveJob?.cancel()
-        webSocket?.close(1000, "Session reset")
-        webSocket = null
+    fun rotateSession(config: SonioxSessionConfig) {
+        this.config = config
+        isManualStop = false
         reconnectAttempt = 0
-        doConnect()
+        reconnectJob?.cancel()
+
+        if (activeSocket == null) {
+            openSocket(config = config, mode = ConnectMode.INITIAL)
+            return
+        }
+
+        Logger.logDebug(TAG, "Rotating session with make-before-break reset")
+        openSocket(config = config, mode = ConnectMode.ROTATE)
     }
 
     /**
@@ -108,7 +134,7 @@ class SonioxWebSocketClient @Inject constructor(
             if (!settled) {
                 settled = true
                 ws?.close(1000, null)
-                cont.resume(result) {}
+                cont.resume(result)
             }
         }
 
@@ -143,29 +169,66 @@ class SonioxWebSocketClient @Inject constructor(
         }
     }
 
-    private fun doConnect() {
-        _status.value = SubtitleEngineStatus.CONNECTING
-        listener?.onStatusChange(SubtitleEngineStatus.CONNECTING)
+    private fun openSocket(config: SonioxSessionConfig, mode: ConnectMode) {
+        val status = when (mode) {
+            ConnectMode.INITIAL -> SubtitleEngineStatus.CONNECTING
+            ConnectMode.RECONNECT -> SubtitleEngineStatus.RECONNECTING
+            ConnectMode.ROTATE -> null
+        }
 
+        status?.let {
+            _status.value = it
+            listener?.onStatusChange(it)
+        }
+
+        val socketId = ++nextSocketId
         val request = Request.Builder().url(WS_URL).build()
-        webSocket = okHttpClient.newWebSocket(request, createWebSocketListener())
+        val webSocket = okHttpClient.newWebSocket(
+            request,
+            createWebSocketListener(socketId = socketId, socketConfig = config, mode = mode),
+        )
+        sockets[socketId] = webSocket
     }
 
-    private fun createWebSocketListener(): WebSocketListener {
+    private fun createWebSocketListener(
+        socketId: Long,
+        socketConfig: SonioxSessionConfig,
+        mode: ConnectMode,
+    ): WebSocketListener {
         return object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                Logger.logDebug(TAG, "WebSocket opened")
-                val cfg = config ?: return
-                val configJson = buildConfigJson(cfg)
+                Logger.logDebug(TAG, "WebSocket opened (id=$socketId, mode=$mode)")
+                val configJson = buildConfigJson(socketConfig)
                 webSocket.send(configJson)
 
+                reconnectJob?.cancel()
+                reconnectJob = null
                 _status.value = SubtitleEngineStatus.ACTIVE
                 listener?.onStatusChange(SubtitleEngineStatus.ACTIVE)
                 reconnectAttempt = 0
+
+                if (mode == ConnectMode.ROTATE) {
+                    val previousSocket = activeSocket
+                    previousSocket?.let {
+                        drainingSocketIds.add(it.id)
+                        manualCloseSocketIds.add(it.id)
+                    }
+                    activeSocket = ManagedSocket(socketId, socketConfig, webSocket)
+                    previousSocket?.let {
+                        it.webSocket.close(1000, "Session reset")
+                    }
+                } else {
+                    activeSocket = ManagedSocket(socketId, socketConfig, webSocket)
+                }
+
                 startKeepalive()
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                if (!shouldProcessMessages(socketId)) {
+                    return
+                }
+
                 try {
                     val json = JSONObject(text)
                     val tokens = json.optJSONArray("tokens")
@@ -187,8 +250,21 @@ class SonioxWebSocketClient @Inject constructor(
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                Logger.logDebug(TAG, "WebSocket closed: code=$code reason=$reason")
-                keepaliveJob?.cancel()
+                Logger.logDebug(TAG, "WebSocket closed: id=$socketId code=$code reason=$reason")
+                val wasActive = activeSocket?.id == socketId
+                val wasManualClose = manualCloseSocketIds.remove(socketId)
+
+                sockets.remove(socketId)
+                drainingSocketIds.remove(socketId)
+                if (wasActive) {
+                    keepaliveJob?.cancel()
+                    keepaliveJob = null
+                    activeSocket = null
+                }
+
+                if (wasManualClose || !wasActive) {
+                    return
+                }
 
                 when (code) {
                     CLOSE_INVALID_KEY, CLOSE_INVALID_KEY_ALT -> {
@@ -215,10 +291,19 @@ class SonioxWebSocketClient @Inject constructor(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Logger.logError(TAG, "WebSocket failure", t)
-                keepaliveJob?.cancel()
+                Logger.logError(TAG, "WebSocket failure (id=$socketId)", t)
+                val wasActive = activeSocket?.id == socketId
+                val wasManualClose = manualCloseSocketIds.remove(socketId)
 
-                if (!isManualStop) {
+                sockets.remove(socketId)
+                drainingSocketIds.remove(socketId)
+                if (wasActive) {
+                    keepaliveJob?.cancel()
+                    keepaliveJob = null
+                    activeSocket = null
+                }
+
+                if (!wasManualClose && wasActive && !isManualStop) {
                     listener?.onError("Connection lost: ${t.message}", true)
                     scheduleReconnect()
                 }
@@ -263,7 +348,7 @@ class SonioxWebSocketClient @Inject constructor(
         keepaliveJob = scope.launch {
             while (true) {
                 delay(KEEPALIVE_INTERVAL_MS)
-                val sent = webSocket?.send("{\"type\":\"keepalive\"}") ?: false
+                val sent = activeSocket?.webSocket?.send("{\"type\":\"keepalive\"}") ?: false
                 if (!sent) {
                     Logger.logError(TAG, "Failed to send keepalive")
                     break
@@ -273,6 +358,9 @@ class SonioxWebSocketClient @Inject constructor(
     }
 
     private fun scheduleReconnect() {
+        val reconnectConfig = config ?: return
+
+        reconnectJob?.cancel()
         _status.value = SubtitleEngineStatus.RECONNECTING
         listener?.onStatusChange(SubtitleEngineStatus.RECONNECTING)
 
@@ -281,11 +369,28 @@ class SonioxWebSocketClient @Inject constructor(
         reconnectAttempt++
 
         Logger.logDebug(TAG, "Reconnecting in ${backoff}ms (attempt $reconnectAttempt)")
-        scope.launch {
+        reconnectJob = scope.launch {
             delay(backoff)
-            if (!isManualStop) {
-                doConnect()
+            if (!isManualStop && activeSocket == null) {
+                openSocket(config = reconnectConfig, mode = ConnectMode.RECONNECT)
             }
         }
+    }
+
+    private fun shouldProcessMessages(socketId: Long): Boolean {
+        return activeSocket?.id == socketId || socketId in drainingSocketIds
+    }
+
+    private fun closeAllSockets(reason: String) {
+        if (sockets.isEmpty()) {
+            activeSocket = null
+            drainingSocketIds.clear()
+            return
+        }
+
+        manualCloseSocketIds.addAll(sockets.keys)
+        sockets.values.forEach { it.close(1000, reason) }
+        activeSocket = null
+        drainingSocketIds.clear()
     }
 }

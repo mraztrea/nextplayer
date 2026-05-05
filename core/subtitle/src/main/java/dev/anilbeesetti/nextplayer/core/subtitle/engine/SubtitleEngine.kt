@@ -6,13 +6,13 @@ import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.subtitle.audio.AudioBatcher
 import dev.anilbeesetti.nextplayer.core.subtitle.audio.SubtitleAudioProcessor
 import dev.anilbeesetti.nextplayer.core.subtitle.di.SubtitleScope
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SonioxSessionConfig
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleEngineStatus
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleSegment
+import dev.anilbeesetti.nextplayer.core.subtitle.session.SessionResetScheduler
 import dev.anilbeesetti.nextplayer.core.subtitle.session.SubtitleSessionManager
 import dev.anilbeesetti.nextplayer.core.subtitle.storage.SecureApiKeyStorage
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -39,21 +39,20 @@ class SubtitleEngineImpl @Inject constructor(
     private val webSocketClient: SonioxWebSocketClient,
     private val tokenParser: SonioxTokenParser,
     private val sessionManager: SubtitleSessionManager,
+    private val sessionResetScheduler: SessionResetScheduler,
     private val audioBatcher: AudioBatcher,
     private val subtitleAudioProcessor: SubtitleAudioProcessor,
     private val preferencesRepository: PreferencesRepository,
     private val secureApiKeyStorage: SecureApiKeyStorage,
-    @SubtitleScope private val scope: CoroutineScope,
+    @param:SubtitleScope private val scope: CoroutineScope,
 ) : SubtitleEngine {
 
     companion object {
         private const val TAG = "SubtitleEngine"
-        private const val SESSION_DURATION_MS = 3 * 60 * 1000L // 3 phút
         private const val CONFIGURE_API_KEY_MESSAGE = "Configure Soniox API key in Settings > Subtitle"
     }
 
-    private var currentConfig: dev.anilbeesetti.nextplayer.core.subtitle.model.SonioxSessionConfig? = null
-    private var sessionResetJob: Job? = null
+    private var currentConfig: SonioxSessionConfig? = null
 
     override val status: StateFlow<SubtitleEngineStatus> = webSocketClient.status
     override val displaySegments: StateFlow<List<SubtitleSegment>> = sessionManager.displaySegments
@@ -80,7 +79,7 @@ class SubtitleEngineImpl @Inject constructor(
         }
 
         val preferences = preferencesRepository.playerPreferences.value
-        val config = dev.anilbeesetti.nextplayer.core.subtitle.model.SonioxSessionConfig(
+        val config = SonioxSessionConfig(
             apiKey = apiKey,
             targetLanguage = preferences.targetLanguage.ifBlank {
                 PlayerPreferences.DEFAULT_LIVE_SUBTITLE_TARGET_LANGUAGE
@@ -100,14 +99,13 @@ class SubtitleEngineImpl @Inject constructor(
         })
         subtitleAudioProcessor.setEnabled(true)
         webSocketClient.connect(config)
-        startSessionResetTimer()
+        sessionResetScheduler.start(::resetSession)
         Logger.logDebug(TAG, "Engine started with target=${config.targetLanguage}")
         return SubtitleStartResult.Started
     }
 
     override fun stop() {
-        sessionResetJob?.cancel()
-        sessionResetJob = null
+        sessionResetScheduler.stop()
         subtitleAudioProcessor.setEnabled(false)
         webSocketClient.disconnect()
         audioBatcher.reset()
@@ -118,25 +116,13 @@ class SubtitleEngineImpl @Inject constructor(
 
     override fun resetSession() {
         Logger.logDebug(TAG, "Resetting session (make-before-break với carryover context)")
-        val carryover = sessionManager.getCarryoverContext()
-        val newConfig = currentConfig?.copy(carryoverContext = carryover.ifBlank { null })
-        sessionManager.clearDisplay()
-        if (newConfig != null) {
-            currentConfig = newConfig
-            webSocketClient.connect(newConfig) // make-before-break: connect trước khi đóng cũ
-        } else {
-            webSocketClient.resetConnection()
-        }
-        startSessionResetTimer() // Khởi động lại timer
-    }
+        val baseConfig = currentConfig ?: return
+        val carryover = sessionManager.getCarryoverContext().ifBlank { null }
+        val newConfig = baseConfig.copy(carryoverContext = carryover)
 
-    private fun startSessionResetTimer() {
-        sessionResetJob?.cancel()
-        sessionResetJob = scope.launch {
-            delay(SESSION_DURATION_MS)
-            Logger.logDebug(TAG, "Session timeout — auto-resetting")
-            resetSession()
-        }
+        currentConfig = newConfig
+        webSocketClient.rotateSession(newConfig)
+        sessionResetScheduler.start(::resetSession)
     }
 
     private fun failStart(message: String): SubtitleStartResult {

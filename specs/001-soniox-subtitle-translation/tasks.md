@@ -123,9 +123,9 @@
 
 ### Implementation for User Story 5
 
-- [ ] T033 [US5] Implement `SessionResetScheduler` trong `core/subtitle/src/main/java/.../subtitle/session/SessionResetScheduler.kt` — make-before-break session reset mỗi 3 phút, carry-over context ≤500 ký tự, không gián đoạn người dùng
-- [ ] T034 [US5] Cập nhật `SubtitleSessionManager` — implement display buffer trimming (giữ N segments gần nhất), session log không trim, quản lý bộ nhớ cho phiên dài
-- [ ] T035 [US5] Cập nhật `SonioxWebSocketClient` — tích hợp SessionResetScheduler, xử lý graceful close + reconnect khi reset, exponential backoff cho network errors
+- [x] T033 [US5] Implement `SessionResetScheduler` trong `core/subtitle/src/main/java/.../subtitle/session/SessionResetScheduler.kt` — make-before-break session reset mỗi 3 phút, carry-over context ≤500 ký tự, không gián đoạn người dùng
+- [x] T034 [US5] Cập nhật `SubtitleSessionManager` — implement display buffer trimming (giữ N segments gần nhất), session log không trim, quản lý bộ nhớ cho phiên dài
+- [x] T035 [US5] Cập nhật `SonioxWebSocketClient` — tích hợp SessionResetScheduler, xử lý graceful close + reconnect khi reset, exponential backoff cho network errors
 
 **Checkpoint**: US5 hoàn thành — phiên subtitle ổn định 2+ tiếng
 
