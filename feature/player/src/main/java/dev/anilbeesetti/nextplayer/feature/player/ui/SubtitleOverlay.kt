@@ -44,8 +44,9 @@ fun SubtitleOverlay(
         for (segment in visibleSegments) {
             when (displayMode) {
                 SubtitleDisplayMode.TRANSLATION_ONLY -> {
-                    val text = segment.translationText ?: segment.originalText
-                    SubtitleText(text = text, bgColor = bgColor)
+                    segment.translationText?.let { translatedText ->
+                        SubtitleText(text = translatedText, bgColor = bgColor)
+                    }
                 }
                 SubtitleDisplayMode.ORIGINAL_ONLY -> {
                     SubtitleText(text = segment.originalText, bgColor = bgColor)

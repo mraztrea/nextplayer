@@ -7,6 +7,16 @@ local.properties
 
 # Log/OS Files
 *.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# Additional build artifacts
+out/
+*.class
+*.jar
+.env*
 
 # Android Studio generated files and folders
 captures/

@@ -5,18 +5,25 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -25,12 +32,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.Font
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleDisplayMode
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.ClickablePreferenceItem
 import dev.anilbeesetti.nextplayer.core.ui.components.ListSectionTitle
@@ -68,8 +78,47 @@ private fun SubtitlePreferencesContent(
     onNavigateUp: () -> Unit,
 ) {
     val languages = remember { listOf(Pair("None", "")) + LocalesHelper.getAvailableLocales() }
+    val autoDetectLabel = stringResource(id = R.string.auto_detect)
+    val translationLanguages = remember { LocalesHelper.getAvailableTranslationLanguages() }
+    val sourceLanguages = remember(autoDetectLabel, translationLanguages) {
+        listOf(autoDetectLabel to PlayerPreferences.DEFAULT_LIVE_SUBTITLE_SOURCE_LANGUAGE) + translationLanguages
+    }
     val charsetResource = stringArrayResource(id = R.array.charsets_list)
     val context = LocalContext.current
+    val selectedDisplayMode = SubtitleDisplayMode.fromPreference(uiState.preferences.displayMode)
+    val sourceLanguageDescription = remember(uiState.preferences.sourceLanguage, autoDetectLabel) {
+        if (uiState.preferences.sourceLanguage == PlayerPreferences.DEFAULT_LIVE_SUBTITLE_SOURCE_LANGUAGE) {
+            autoDetectLabel
+        } else {
+            LocalesHelper.getTranslationLanguageDisplayName(uiState.preferences.sourceLanguage)
+        }
+    }
+    val targetLanguageDescription = remember(uiState.preferences.targetLanguage) {
+        LocalesHelper.getTranslationLanguageDisplayName(uiState.preferences.targetLanguage)
+            .ifBlank { uiState.preferences.targetLanguage }
+    }
+    val apiKeyStatusText = remember(
+        uiState.apiKeyValidationState,
+        uiState.preferences.hasApiKeyConfigured,
+    ) {
+        when (val validationState = uiState.apiKeyValidationState) {
+            ApiKeyValidationState.Idle -> {
+                if (uiState.preferences.hasApiKeyConfigured) {
+                    context.getString(R.string.api_key_configured)
+                } else {
+                    context.getString(R.string.api_key_not_configured)
+                }
+            }
+            ApiKeyValidationState.Valid -> context.getString(R.string.api_key_validation_success)
+            ApiKeyValidationState.Validating -> context.getString(R.string.api_key_validation_in_progress)
+            is ApiKeyValidationState.Invalid -> validationState.message
+        }
+    }
+    val apiKeyStatusColor = when (uiState.apiKeyValidationState) {
+        ApiKeyValidationState.Valid -> MaterialTheme.colorScheme.primary
+        is ApiKeyValidationState.Invalid -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Scaffold(
         topBar = {
@@ -94,6 +143,82 @@ private fun SubtitlePreferencesContent(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
         ) {
+            ListSectionTitle(text = stringResource(id = R.string.translation))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    OutlinedTextField(
+                        value = uiState.apiKeyInput,
+                        onValueChange = { onEvent(SubtitlePreferencesUiEvent.UpdateApiKeyInput(it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(text = stringResource(id = R.string.soniox_api_key)) },
+                        placeholder = { Text(text = stringResource(id = R.string.soniox_api_key_placeholder)) },
+                        singleLine = true,
+                        visualTransformation = if (uiState.isApiKeyVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
+                    )
+                    Text(
+                        text = apiKeyStatusText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = apiKeyStatusColor,
+                    )
+                    androidx.compose.foundation.layout.Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        TextButton(onClick = { onEvent(SubtitlePreferencesUiEvent.ToggleApiKeyVisibility) }) {
+                            Text(
+                                text = stringResource(
+                                    id = if (uiState.isApiKeyVisible) R.string.hide else R.string.show,
+                                ),
+                            )
+                        }
+                        FilledTonalButton(onClick = { onEvent(SubtitlePreferencesUiEvent.ValidateAndSaveApiKey) }) {
+                            Text(text = stringResource(id = R.string.validate_and_save_api_key))
+                        }
+                        TextButton(
+                            enabled = uiState.apiKeyInput.isNotBlank() || uiState.preferences.hasApiKeyConfigured,
+                            onClick = { onEvent(SubtitlePreferencesUiEvent.ClearApiKey) },
+                        ) {
+                            Text(text = stringResource(id = R.string.clear_api_key))
+                        }
+                    }
+                }
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+            ) {
+                ClickablePreferenceItem(
+                    title = stringResource(id = R.string.source_language),
+                    description = sourceLanguageDescription,
+                    icon = NextIcons.Language,
+                    onClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.SourceLanguageDialog)) },
+                    isFirstItem = true,
+                )
+                ClickablePreferenceItem(
+                    title = stringResource(id = R.string.target_language),
+                    description = targetLanguageDescription,
+                    icon = NextIcons.Language,
+                    onClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.TargetLanguageDialog)) },
+                )
+                ClickablePreferenceItem(
+                    title = stringResource(id = R.string.subtitle_display_mode),
+                    description = selectedDisplayMode.label(),
+                    icon = NextIcons.Caption,
+                    onClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.DisplayModeDialog)) },
+                    isLastItem = true,
+                )
+            }
             ListSectionTitle(text = stringResource(id = R.string.playback))
             Column(
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
@@ -241,8 +366,71 @@ private fun SubtitlePreferencesContent(
                         }
                     }
                 }
+
+                SubtitlePreferenceDialog.SourceLanguageDialog -> {
+                    OptionsDialog(
+                        text = stringResource(id = R.string.source_language),
+                        onDismissClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(null)) },
+                    ) {
+                        items(sourceLanguages) { option ->
+                            RadioTextButton(
+                                text = option.first,
+                                selected = option.second == uiState.preferences.sourceLanguage,
+                                onClick = {
+                                    onEvent(SubtitlePreferencesUiEvent.UpdateTranslationSourceLanguage(option.second))
+                                    onEvent(SubtitlePreferencesUiEvent.ShowDialog(null))
+                                },
+                            )
+                        }
+                    }
+                }
+
+                SubtitlePreferenceDialog.TargetLanguageDialog -> {
+                    OptionsDialog(
+                        text = stringResource(id = R.string.target_language),
+                        onDismissClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(null)) },
+                    ) {
+                        items(translationLanguages) { option ->
+                            RadioTextButton(
+                                text = option.first,
+                                selected = option.second == uiState.preferences.targetLanguage,
+                                onClick = {
+                                    onEvent(SubtitlePreferencesUiEvent.UpdateTranslationTargetLanguage(option.second))
+                                    onEvent(SubtitlePreferencesUiEvent.ShowDialog(null))
+                                },
+                            )
+                        }
+                    }
+                }
+
+                SubtitlePreferenceDialog.DisplayModeDialog -> {
+                    OptionsDialog(
+                        text = stringResource(id = R.string.subtitle_display_mode),
+                        onDismissClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(null)) },
+                    ) {
+                        items(SubtitleDisplayMode.entries.toTypedArray()) { mode ->
+                            RadioTextButton(
+                                text = mode.label(),
+                                selected = mode == selectedDisplayMode,
+                                onClick = {
+                                    onEvent(SubtitlePreferencesUiEvent.UpdateDisplayMode(mode))
+                                    onEvent(SubtitlePreferencesUiEvent.ShowDialog(null))
+                                },
+                            )
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun SubtitleDisplayMode.label(): String {
+    return when (this) {
+        SubtitleDisplayMode.ORIGINAL_ONLY -> stringResource(id = R.string.original_only)
+        SubtitleDisplayMode.TRANSLATION_ONLY -> stringResource(id = R.string.translation_only)
+        SubtitleDisplayMode.BILINGUAL -> stringResource(id = R.string.bilingual)
     }
 }
 

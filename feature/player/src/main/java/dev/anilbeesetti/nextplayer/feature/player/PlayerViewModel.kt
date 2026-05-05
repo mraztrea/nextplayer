@@ -13,8 +13,7 @@ import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngine
-import dev.anilbeesetti.nextplayer.core.subtitle.model.SonioxSessionConfig
-import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleDisplayMode
+import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleStartResult
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleEngineStatus
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleSegment
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
@@ -40,6 +39,9 @@ class PlayerViewModel @Inject constructor(
     private val _liveSubtitleActive = MutableStateFlow(false)
     val liveSubtitleActive: StateFlow<Boolean> = _liveSubtitleActive.asStateFlow()
 
+    private val _subtitleNotice = MutableStateFlow<String?>(null)
+    val subtitleNotice: StateFlow<String?> = _subtitleNotice.asStateFlow()
+
     val subtitleSegments: StateFlow<List<SubtitleSegment>> = subtitleEngine.displaySegments
     val provisionalText: StateFlow<String> = subtitleEngine.provisionalText
     val subtitleStatus: StateFlow<SubtitleEngineStatus> = subtitleEngine.status
@@ -55,6 +57,14 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.playerPreferences.collect { prefs ->
                 internalUiState.update { it.copy(playerPreferences = prefs) }
+            }
+        }
+
+        viewModelScope.launch {
+            subtitleEngine.status.collect { status ->
+                if (status == SubtitleEngineStatus.ERROR || status == SubtitleEngineStatus.STOPPED || status == SubtitleEngineStatus.IDLE) {
+                    _liveSubtitleActive.value = false
+                }
             }
         }
     }
@@ -98,27 +108,43 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    fun toggleLiveSubtitle(apiKey: String, targetLanguage: String = "vi", sourceLanguage: String? = null) {
-        if (_liveSubtitleActive.value) {
-            stopLiveSubtitle()
-        } else {
-            startLiveSubtitle(apiKey, targetLanguage, sourceLanguage)
+    fun toggleLiveSubtitle() {
+        viewModelScope.launch {
+            if (_liveSubtitleActive.value) {
+                stopLiveSubtitle()
+            } else {
+                startLiveSubtitle()
+            }
         }
     }
 
-    fun startLiveSubtitle(apiKey: String, targetLanguage: String = "vi", sourceLanguage: String? = null) {
-        val config = SonioxSessionConfig(
-            apiKey = apiKey,
-            targetLanguage = targetLanguage,
-            sourceLanguage = sourceLanguage,
-        )
-        subtitleEngine.start(config)
-        _liveSubtitleActive.value = true
+    suspend fun startLiveSubtitle() {
+        when (val startResult = subtitleEngine.start()) {
+            SubtitleStartResult.Started -> {
+                _liveSubtitleActive.value = true
+                preferencesRepository.updatePlayerPreferences {
+                    it.copy(liveSubtitleEnabled = true)
+                }
+            }
+            is SubtitleStartResult.Failed -> {
+                _subtitleNotice.value = startResult.message
+                preferencesRepository.updatePlayerPreferences {
+                    it.copy(liveSubtitleEnabled = false)
+                }
+            }
+        }
     }
 
-    fun stopLiveSubtitle() {
+    suspend fun stopLiveSubtitle() {
         subtitleEngine.stop()
         _liveSubtitleActive.value = false
+        preferencesRepository.updatePlayerPreferences {
+            it.copy(liveSubtitleEnabled = false)
+        }
+    }
+
+    fun consumeSubtitleNotice() {
+        _subtitleNotice.value = null
     }
 
     override fun onCleared() {

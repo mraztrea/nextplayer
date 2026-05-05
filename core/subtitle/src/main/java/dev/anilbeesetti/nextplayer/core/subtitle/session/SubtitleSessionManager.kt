@@ -84,6 +84,8 @@ class SubtitleSessionManager @Inject constructor() {
             }
         }
 
+        _provisionalText.value = ""
+        _provisionalSpeaker.value = null
         _displaySegments.value = current
     }
 

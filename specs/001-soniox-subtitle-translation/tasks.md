@@ -73,15 +73,15 @@
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] Mở rộng `PlayerPreferences` trong `core/model/src/main/java/.../model/PlayerPreferences.kt` — thêm fields: sourceLanguage, targetLanguage, displayMode, endpointDelayMs, liveSubtitleEnabled
-- [ ] T021 [P] [US2] Mở rộng `PlayerPreferencesDataSource` trong `core/datastore/src/main/java/.../datastore/datasource/PlayerPreferencesDataSource.kt` — thêm read/write cho translation preferences mới
-- [ ] T022 [US2] Sửa `SubtitlePreferencesScreen.kt` trong `feature/settings/src/main/java/.../settings/screens/subtitle/SubtitlePreferencesScreen.kt` — thêm section "Translation": API key field, dropdown chọn source/target language, radio buttons chọn display mode
-- [ ] T023 [US2] Sửa `SubtitlePreferencesViewModel.kt` trong `feature/settings/src/main/java/.../settings/screens/subtitle/SubtitlePreferencesViewModel.kt` — expose và update translation preferences qua DataStore
-- [ ] T025 [US2] Cập nhật `SubtitleEngineImpl` — đọc TranslationPreferences khi khởi tạo session, build SonioxSessionConfig từ preferences
-- [ ] T026 [P] [US2] Tạo `SecureApiKeyStorage` trong `core/subtitle/src/main/java/.../subtitle/storage/SecureApiKeyStorage.kt` — sử dụng EncryptedSharedPreferences để lưu/đọc/xóa API key
-- [ ] T027 [US2] Bổ sung logic UI/API cho API Key trong `SubtitlePreferencesScreen.kt` và `SubtitlePreferencesViewModel.kt` — toggle hiện/ẩn, validate action, trạng thái valid/invalid
-- [ ] T028 [US2] Implement API Key validation trong `SonioxWebSocketClient.kt` — thử kết nối nhanh, phân biệt lỗi invalid key / subscription / rate limit
-- [ ] T029 [US2] Cập nhật `SubtitleEngineImpl` — kiểm tra API key validity trước khi start session (FR-016), hiển thị lỗi rõ ràng nếu key thiếu/invalid
+- [x] T020 [P] [US2] Mở rộng `PlayerPreferences` trong `core/model/src/main/java/.../model/PlayerPreferences.kt` — thêm fields: sourceLanguage, targetLanguage, displayMode, endpointDelayMs, liveSubtitleEnabled
+- [x] T021 [P] [US2] Mở rộng `PlayerPreferencesDataSource` trong `core/datastore/src/main/java/.../datastore/datasource/PlayerPreferencesDataSource.kt` — thêm read/write cho translation preferences mới
+- [x] T022 [US2] Sửa `SubtitlePreferencesScreen.kt` trong `feature/settings/src/main/java/.../settings/screens/subtitle/SubtitlePreferencesScreen.kt` — thêm section "Translation": API key field, dropdown chọn source/target language, radio buttons chọn display mode
+- [x] T023 [US2] Sửa `SubtitlePreferencesViewModel.kt` trong `feature/settings/src/main/java/.../settings/screens/subtitle/SubtitlePreferencesViewModel.kt` — expose và update translation preferences qua DataStore
+- [x] T025 [US2] Cập nhật `SubtitleEngineImpl` — đọc TranslationPreferences khi khởi tạo session, build SonioxSessionConfig từ preferences
+- [x] T026 [P] [US2] Tạo `SecureApiKeyStorage` trong `core/subtitle/src/main/java/.../subtitle/storage/SecureApiKeyStorage.kt` — sử dụng EncryptedSharedPreferences để lưu/đọc/xóa API key
+- [x] T027 [US2] Bổ sung logic UI/API cho API Key trong `SubtitlePreferencesScreen.kt` và `SubtitlePreferencesViewModel.kt` — toggle hiện/ẩn, validate action, trạng thái valid/invalid
+- [x] T028 [US2] Implement API Key validation trong `SonioxWebSocketClient.kt` — thử kết nối nhanh, phân biệt lỗi invalid key / subscription / rate limit
+- [x] T029 [US2] Cập nhật `SubtitleEngineImpl` — kiểm tra API key validity trước khi start session (FR-016), hiển thị lỗi rõ ràng nếu key thiếu/invalid
 
 **Checkpoint**: US2 hoàn thành — người dùng cấu hình và lưu được API key/ngôn ngữ/chế độ hiển thị, phiên subtitle khởi động với cấu hình hợp lệ
 
@@ -93,7 +93,7 @@
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Cập nhật `SubtitleOverlay.kt` — hỗ trợ cả 3 chế độ hiển thị: ORIGINAL_ONLY, TRANSLATION_ONLY, BILINGUAL; trong BILINGUAL hiển thị placeholder `...` khi original đã final nhưng translation chưa đến
+- [x] T024 [US3] Cập nhật `SubtitleOverlay.kt` — hỗ trợ cả 3 chế độ hiển thị: ORIGINAL_ONLY, TRANSLATION_ONLY, BILINGUAL; trong BILINGUAL hiển thị placeholder `...` khi original đã final nhưng translation chưa đến
 
 **Checkpoint**: US3 hoàn thành — overlay song ngữ hiển thị đúng original, translation, và trạng thái đang chờ dịch
 
@@ -107,9 +107,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T030 [US4] Cập nhật `SubtitleOverlay.kt` — thêm hiển thị provisional text với animation fade-in, style italic + opacity thấp, tách biệt visual với final segments
-- [ ] T031 [US4] Cập nhật `SubtitleSessionManager` — quản lý provisional text state riêng biệt, xóa provisional khi nhận được final segment hoặc `<end>` token
-- [ ] T032 [US4] Cập nhật `PlayerViewModel` — expose provisional text state cho UI, cập nhật liên tục khi có token mới
+- [x] T030 [US4] Cập nhật `SubtitleOverlay.kt` — thêm hiển thị provisional text với animation fade-in, style italic + opacity thấp, tách biệt visual với final segments
+- [x] T031 [US4] Cập nhật `SubtitleSessionManager` — quản lý provisional text state riêng biệt, xóa provisional khi nhận được final segment hoặc `<end>` token
+- [x] T032 [US4] Cập nhật `PlayerViewModel` — expose provisional text state cho UI, cập nhật liên tục khi có token mới
 
 **Checkpoint**: US4 hoàn thành — provisional text hiển thị mượt mà với visual khác biệt
 

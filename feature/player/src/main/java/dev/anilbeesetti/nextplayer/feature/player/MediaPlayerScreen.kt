@@ -137,6 +137,7 @@ fun MediaPlayerScreen(
         onEvent = viewModel::onVideoZoomEvent,
     )
     val brightnessState = rememberBrightnessState()
+    val context = LocalContext.current
     val volumeAndBrightnessGestureState = rememberVolumeAndBrightnessGestureState(
         volumeState = volumeState,
         brightnessState = brightnessState,
@@ -181,6 +182,14 @@ fun MediaPlayerScreen(
     val liveSubtitleActive by viewModel.liveSubtitleActive.collectAsStateWithLifecycle()
     val subtitleSegments by viewModel.subtitleSegments.collectAsStateWithLifecycle()
     val provisionalText by viewModel.provisionalText.collectAsStateWithLifecycle()
+    val subtitleNotice by viewModel.subtitleNotice.collectAsStateWithLifecycle()
+
+    LaunchedEffect(subtitleNotice) {
+        if (!subtitleNotice.isNullOrBlank()) {
+            Toast.makeText(context, subtitleNotice, Toast.LENGTH_SHORT).show()
+            viewModel.consumeSubtitleNotice()
+        }
+    }
 
     CompositionLocalProvider(LocalControlsVisibilityState provides controlsVisibilityState) {
         Box {
@@ -394,7 +403,7 @@ fun MediaPlayerScreen(
                 SubtitleOverlay(
                     segments = subtitleSegments,
                     provisionalText = provisionalText,
-                    displayMode = SubtitleDisplayMode.TRANSLATION_ONLY,
+                    displayMode = SubtitleDisplayMode.fromPreference(playerPreferences.displayMode),
                     modifier = Modifier.align(Alignment.BottomCenter)
                         .padding(bottom = 80.dp),
                 )

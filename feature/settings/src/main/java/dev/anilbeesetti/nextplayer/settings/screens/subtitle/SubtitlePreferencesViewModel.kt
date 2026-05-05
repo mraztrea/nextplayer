@@ -7,6 +7,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.model.Font
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
+import dev.anilbeesetti.nextplayer.core.subtitle.engine.SonioxWebSocketClient
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleDisplayMode
+import dev.anilbeesetti.nextplayer.core.subtitle.storage.SecureApiKeyStorage
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +19,8 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class SubtitlePreferencesViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
+    private val secureApiKeyStorage: SecureApiKeyStorage,
+    private val sonioxWebSocketClient: SonioxWebSocketClient,
 ) : ViewModel() {
 
     private val uiStateInternal = MutableStateFlow(
@@ -26,6 +31,8 @@ class SubtitlePreferencesViewModel @Inject constructor(
     val uiState = uiStateInternal.asStateFlow()
 
     init {
+        loadStoredApiKey()
+
         viewModelScope.launch {
             preferencesRepository.playerPreferences.collect { preferences ->
                 uiStateInternal.update { currentState ->
@@ -46,6 +53,19 @@ class SubtitlePreferencesViewModel @Inject constructor(
             SubtitlePreferencesUiEvent.ToggleApplyEmbeddedStyles -> toggleApplyEmbeddedStyles()
             is SubtitlePreferencesUiEvent.UpdateSubtitleEncoding -> updateSubtitleEncoding(event.value)
             SubtitlePreferencesUiEvent.ToggleUseSystemCaptionStyle -> toggleUseSystemCaptionStyle()
+            is SubtitlePreferencesUiEvent.UpdateTranslationSourceLanguage -> updateTranslationSourceLanguage(event.value)
+            is SubtitlePreferencesUiEvent.UpdateTranslationTargetLanguage -> updateTranslationTargetLanguage(event.value)
+            is SubtitlePreferencesUiEvent.UpdateDisplayMode -> updateDisplayMode(event.value)
+            is SubtitlePreferencesUiEvent.UpdateApiKeyInput -> updateApiKeyInput(event.value)
+            SubtitlePreferencesUiEvent.ToggleApiKeyVisibility -> toggleApiKeyVisibility()
+            SubtitlePreferencesUiEvent.ValidateAndSaveApiKey -> validateAndSaveApiKey()
+            SubtitlePreferencesUiEvent.ClearApiKey -> clearApiKey()
+        }
+    }
+
+    private fun loadStoredApiKey() {
+        uiStateInternal.update {
+            it.copy(apiKeyInput = secureApiKeyStorage.getApiKey().orEmpty())
         }
     }
 
@@ -114,18 +134,119 @@ class SubtitlePreferencesViewModel @Inject constructor(
             preferencesRepository.updatePlayerPreferences { it.copy(useSystemCaptionStyle = !it.useSystemCaptionStyle) }
         }
     }
+
+    private fun updateTranslationSourceLanguage(value: String) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(sourceLanguage = value)
+            }
+        }
+    }
+
+    private fun updateTranslationTargetLanguage(value: String) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(targetLanguage = value)
+            }
+        }
+    }
+
+    private fun updateDisplayMode(value: SubtitleDisplayMode) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(displayMode = value.name)
+            }
+        }
+    }
+
+    private fun updateApiKeyInput(value: String) {
+        uiStateInternal.update {
+            it.copy(
+                apiKeyInput = value,
+                apiKeyValidationState = ApiKeyValidationState.Idle,
+            )
+        }
+    }
+
+    private fun toggleApiKeyVisibility() {
+        uiStateInternal.update {
+            it.copy(isApiKeyVisible = !it.isApiKeyVisible)
+        }
+    }
+
+    private fun validateAndSaveApiKey() {
+        viewModelScope.launch {
+            val apiKey = uiStateInternal.value.apiKeyInput.trim()
+            if (apiKey.isBlank()) {
+                uiStateInternal.update {
+                    it.copy(apiKeyValidationState = ApiKeyValidationState.Invalid("Enter API key before validating"))
+                }
+                return@launch
+            }
+
+            uiStateInternal.update {
+                it.copy(apiKeyValidationState = ApiKeyValidationState.Validating)
+            }
+
+            val validationError = sonioxWebSocketClient.validateApiKey(apiKey)
+            if (validationError == null) {
+                secureApiKeyStorage.saveApiKey(apiKey)
+                preferencesRepository.updatePlayerPreferences {
+                    it.copy(hasApiKeyConfigured = true)
+                }
+                uiStateInternal.update {
+                    it.copy(
+                        apiKeyInput = apiKey,
+                        apiKeyValidationState = ApiKeyValidationState.Valid,
+                    )
+                }
+            } else {
+                uiStateInternal.update {
+                    it.copy(apiKeyValidationState = ApiKeyValidationState.Invalid(validationError))
+                }
+            }
+        }
+    }
+
+    private fun clearApiKey() {
+        secureApiKeyStorage.clearApiKey()
+        uiStateInternal.update {
+            it.copy(
+                apiKeyInput = "",
+                apiKeyValidationState = ApiKeyValidationState.Idle,
+            )
+        }
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(hasApiKeyConfigured = false)
+            }
+        }
+    }
 }
 
 @Stable
 data class SubtitlePreferencesUiState(
     val showDialog: SubtitlePreferenceDialog? = null,
     val preferences: PlayerPreferences = PlayerPreferences(),
+    val apiKeyInput: String = "",
+    val isApiKeyVisible: Boolean = false,
+    val apiKeyValidationState: ApiKeyValidationState = ApiKeyValidationState.Idle,
 )
+
+sealed interface ApiKeyValidationState {
+    data object Idle : ApiKeyValidationState
+    data object Validating : ApiKeyValidationState
+    data object Valid : ApiKeyValidationState
+    data class Invalid(val message: String) : ApiKeyValidationState
+}
 
 sealed interface SubtitlePreferenceDialog {
     data object SubtitleLanguageDialog : SubtitlePreferenceDialog
     data object SubtitleFontDialog : SubtitlePreferenceDialog
     data object SubtitleEncodingDialog : SubtitlePreferenceDialog
+    data object SourceLanguageDialog : SubtitlePreferenceDialog
+    data object TargetLanguageDialog : SubtitlePreferenceDialog
+    data object DisplayModeDialog : SubtitlePreferenceDialog
 }
 
 sealed interface SubtitlePreferencesUiEvent {
@@ -138,4 +259,11 @@ sealed interface SubtitlePreferencesUiEvent {
     data object ToggleApplyEmbeddedStyles : SubtitlePreferencesUiEvent
     data class UpdateSubtitleEncoding(val value: String) : SubtitlePreferencesUiEvent
     data object ToggleUseSystemCaptionStyle : SubtitlePreferencesUiEvent
+    data class UpdateTranslationSourceLanguage(val value: String) : SubtitlePreferencesUiEvent
+    data class UpdateTranslationTargetLanguage(val value: String) : SubtitlePreferencesUiEvent
+    data class UpdateDisplayMode(val value: SubtitleDisplayMode) : SubtitlePreferencesUiEvent
+    data class UpdateApiKeyInput(val value: String) : SubtitlePreferencesUiEvent
+    data object ToggleApiKeyVisibility : SubtitlePreferencesUiEvent
+    data object ValidateAndSaveApiKey : SubtitlePreferencesUiEvent
+    data object ClearApiKey : SubtitlePreferencesUiEvent
 }

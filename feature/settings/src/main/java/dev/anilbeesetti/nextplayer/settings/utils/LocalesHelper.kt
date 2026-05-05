@@ -25,4 +25,47 @@ object LocalesHelper {
             ""
         }
     }
+
+    fun getAvailableTranslationLanguages(): List<Pair<String, String>> {
+        val displayLocale = Locale.getDefault()
+
+        return try {
+            Locale.getISOLanguages().mapNotNull { languageCode ->
+                runCatching {
+                    val locale = Locale(languageCode)
+                    val displayLanguage = locale.getDisplayLanguage(displayLocale)
+                    if (displayLanguage.isBlank()) {
+                        null
+                    } else {
+                        displayLanguage.replaceFirstChar {
+                            if (it.isLowerCase()) {
+                                it.titlecase(displayLocale)
+                            } else {
+                                it.toString()
+                            }
+                        } to languageCode
+                    }
+                }.getOrNull()
+            }.distinctBy { it.second }.sortedBy { it.first }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            listOf()
+        }
+    }
+
+    fun getTranslationLanguageDisplayName(languageCode: String): String {
+        return try {
+            Locale(languageCode).getDisplayLanguage(Locale.getDefault())
+                .replaceFirstChar {
+                    if (it.isLowerCase()) {
+                        it.titlecase(Locale.getDefault())
+                    } else {
+                        it.toString()
+                    }
+                }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ""
+        }
+    }
 }

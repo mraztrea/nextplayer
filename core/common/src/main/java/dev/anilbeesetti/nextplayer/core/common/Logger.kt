@@ -15,4 +15,8 @@ object Logger {
     fun logError(tag: String, message: String) {
         Log.e("Logger - $tag", message)
     }
+
+    fun logError(tag: String, message: String, throwable: Throwable) {
+        Log.e("Logger - $tag", message, throwable)
+    }
 }

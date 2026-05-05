@@ -23,6 +23,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
 
 @Singleton
 class SonioxWebSocketClient @Inject constructor(
@@ -98,7 +99,7 @@ class SonioxWebSocketClient @Inject constructor(
      * Quick validation: connect and immediately disconnect.
      * Returns null nếu API key hợp lệ, trả về message lỗi nếu không.
      */
-    suspend fun validateApiKey(apiKey: String): String? = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+    suspend fun validateApiKey(apiKey: String): String? = suspendCancellableCoroutine { cont ->
         val testConfig = SonioxSessionConfig(apiKey = apiKey)
         var ws: WebSocket? = null
         var settled = false

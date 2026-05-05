@@ -56,6 +56,14 @@ data class PlayerPreferences(
     val subtitleTextBold: Boolean = true,
     val applyEmbeddedStyles: Boolean = true,
 
+    // Live Subtitle Translation Preferences
+    val sourceLanguage: String = DEFAULT_LIVE_SUBTITLE_SOURCE_LANGUAGE,
+    val targetLanguage: String = DEFAULT_LIVE_SUBTITLE_TARGET_LANGUAGE,
+    val displayMode: String = DEFAULT_LIVE_SUBTITLE_DISPLAY_MODE,
+    val endpointDelayMs: Int = DEFAULT_SUBTITLE_ENDPOINT_DELAY_MS,
+    val liveSubtitleEnabled: Boolean = false,
+    val hasApiKeyConfigured: Boolean = false,
+
     // Decoder Preferences
     val decoderPriority: DecoderPriority = DecoderPriority.PREFER_DEVICE,
 ) {
@@ -66,6 +74,10 @@ data class PlayerPreferences(
         const val DEFAULT_VOLUME_GESTURE_SENSITIVITY = 0.50f
         const val DEFAULT_BRIGHTNESS_GESTURE_SENSITIVITY = 0.50f
         const val DEFAULT_SUBTITLE_TEXT_SIZE = 20
+        const val DEFAULT_SUBTITLE_ENDPOINT_DELAY_MS = 3000
         const val DEFAULT_CONTROLLER_AUTO_HIDE_TIMEOUT = 4
+        const val DEFAULT_LIVE_SUBTITLE_SOURCE_LANGUAGE = "auto"
+        const val DEFAULT_LIVE_SUBTITLE_TARGET_LANGUAGE = "vi"
+        const val DEFAULT_LIVE_SUBTITLE_DISPLAY_MODE = "TRANSLATION_ONLY"
     }
 }
