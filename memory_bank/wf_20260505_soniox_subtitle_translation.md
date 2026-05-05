@@ -45,6 +45,7 @@
 - [x] T035: Cập nhật `SonioxWebSocketClient` + `SubtitleEngineImpl` để session reset theo make-before-break thực sự, không xóa overlay khi reset, và tránh reconnect rác từ socket cũ
 
 ### Phase 8: Polish (T036-T041)
+- [x] 2026-05-05: Tinh chỉnh UX live subtitle Soniox: ẩn subtitle track gốc của player khi live subtitle bật, không render provisional gốc ở mode `TRANSLATION_ONLY`, và thêm toast `Connecting to Soniox...` khi bắt đầu kết nối
 
 ## Files đã tạo mới (core:subtitle module)
 
@@ -86,6 +87,9 @@
 | `core/subtitle/.../engine/SonioxWebSocketClient.kt` | +quản lý active/draining sockets cho make-before-break reset và reconnect an toàn |
 | `core/subtitle/.../engine/SubtitleEngine.kt` | +ủy quyền reset timer cho scheduler, giữ display buffer khi soft reset |
 | `.gitignore` | +ignore patterns Kotlin/Java/universal còn thiếu |
+| `feature/player/.../PlayerContentFrame.kt` | +ẩn subtitle track gốc của player khi live subtitle Soniox đang bật |
+| `feature/player/.../MediaPlayerScreen.kt` | +truyền cờ ẩn subtitle track gốc khi live subtitle bật |
+| `feature/player/.../PlayerViewModel.kt` | +toast notice khi bắt đầu kết nối Soniox |
 
 ## Files mới cho Phase 7
 

@@ -73,7 +73,7 @@ fun SubtitleOverlay(
 
         // Render provisional text
         AnimatedVisibility(
-            visible = provisionalText.isNotEmpty(),
+            visible = provisionalText.isNotEmpty() && displayMode != SubtitleDisplayMode.TRANSLATION_ONLY,
             enter = fadeIn(),
             exit = fadeOut(),
         ) {

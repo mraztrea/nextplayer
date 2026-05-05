@@ -214,6 +214,7 @@ fun MediaPlayerScreen(
                         textBold = playerPreferences.subtitleTextBold,
                         applyEmbeddedStyles = playerPreferences.applyEmbeddedStyles,
                     ),
+                    showEmbeddedSubtitles = !liveSubtitleActive,
                 )
 
                 AnimatedVisibility(

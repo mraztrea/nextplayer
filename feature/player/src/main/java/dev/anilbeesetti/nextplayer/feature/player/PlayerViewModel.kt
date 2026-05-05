@@ -33,6 +33,10 @@ class PlayerViewModel @Inject constructor(
     val subtitleEngine: SubtitleEngine,
 ) : ViewModel() {
 
+    companion object {
+        private const val CONNECTING_TO_SONIOX_MESSAGE = "Connecting to Soniox..."
+    }
+
     var playWhenReady: Boolean = true
 
     // Live subtitle state
@@ -122,6 +126,7 @@ class PlayerViewModel @Inject constructor(
         when (val startResult = subtitleEngine.start()) {
             SubtitleStartResult.Started -> {
                 _liveSubtitleActive.value = true
+                _subtitleNotice.value = CONNECTING_TO_SONIOX_MESSAGE
                 preferencesRepository.updatePlayerPreferences {
                     it.copy(liveSubtitleEnabled = true)
                 }
