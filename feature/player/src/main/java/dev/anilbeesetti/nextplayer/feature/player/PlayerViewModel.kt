@@ -12,10 +12,16 @@ import dev.anilbeesetti.nextplayer.core.model.LoopMode
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
+import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngine
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SonioxSessionConfig
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleDisplayMode
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleEngineStatus
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleSegment
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
 import dev.anilbeesetti.nextplayer.feature.player.state.VideoZoomEvent
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -25,9 +31,18 @@ class PlayerViewModel @Inject constructor(
     private val mediaRepository: MediaRepository,
     private val preferencesRepository: PreferencesRepository,
     private val getSortedPlaylistUseCase: GetSortedPlaylistUseCase,
+    val subtitleEngine: SubtitleEngine,
 ) : ViewModel() {
 
     var playWhenReady: Boolean = true
+
+    // Live subtitle state
+    private val _liveSubtitleActive = MutableStateFlow(false)
+    val liveSubtitleActive: StateFlow<Boolean> = _liveSubtitleActive.asStateFlow()
+
+    val subtitleSegments: StateFlow<List<SubtitleSegment>> = subtitleEngine.displaySegments
+    val provisionalText: StateFlow<String> = subtitleEngine.provisionalText
+    val subtitleStatus: StateFlow<SubtitleEngineStatus> = subtitleEngine.status
 
     private val internalUiState = MutableStateFlow(
         PlayerUiState(
@@ -80,6 +95,36 @@ class PlayerViewModel @Inject constructor(
             is VideoZoomEvent.ZoomChanged -> {
                 updateVideoZoom(event.mediaItem.mediaId, event.zoom)
             }
+        }
+    }
+
+    fun toggleLiveSubtitle(apiKey: String, targetLanguage: String = "vi", sourceLanguage: String? = null) {
+        if (_liveSubtitleActive.value) {
+            stopLiveSubtitle()
+        } else {
+            startLiveSubtitle(apiKey, targetLanguage, sourceLanguage)
+        }
+    }
+
+    fun startLiveSubtitle(apiKey: String, targetLanguage: String = "vi", sourceLanguage: String? = null) {
+        val config = SonioxSessionConfig(
+            apiKey = apiKey,
+            targetLanguage = targetLanguage,
+            sourceLanguage = sourceLanguage,
+        )
+        subtitleEngine.start(config)
+        _liveSubtitleActive.value = true
+    }
+
+    fun stopLiveSubtitle() {
+        subtitleEngine.stop()
+        _liveSubtitleActive.value = false
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        if (_liveSubtitleActive.value) {
+            subtitleEngine.stop()
         }
     }
 

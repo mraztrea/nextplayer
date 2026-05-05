@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.model.ControlButtonsPosition
@@ -82,6 +83,8 @@ import dev.anilbeesetti.nextplayer.feature.player.ui.OverlayShowView
 import dev.anilbeesetti.nextplayer.feature.player.ui.OverlayView
 import dev.anilbeesetti.nextplayer.feature.player.ui.SubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.ui.VerticalProgressView
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleDisplayMode
+import dev.anilbeesetti.nextplayer.feature.player.ui.SubtitleOverlay
 import dev.anilbeesetti.nextplayer.feature.player.ui.controls.ControlsBottomView
 import dev.anilbeesetti.nextplayer.feature.player.ui.controls.ControlsTopView
 import kotlin.time.Duration.Companion.seconds
@@ -173,6 +176,11 @@ fun MediaPlayerScreen(
     }
 
     var overlayView by remember { mutableStateOf<OverlayView?>(null) }
+
+    // Live subtitle state
+    val liveSubtitleActive by viewModel.liveSubtitleActive.collectAsStateWithLifecycle()
+    val subtitleSegments by viewModel.subtitleSegments.collectAsStateWithLifecycle()
+    val provisionalText by viewModel.provisionalText.collectAsStateWithLifecycle()
 
     CompositionLocalProvider(LocalControlsVisibilityState provides controlsVisibilityState) {
         Box {
@@ -379,6 +387,17 @@ fun MediaPlayerScreen(
                         )
                     }
                 }
+            }
+
+            // Live subtitle overlay
+            if (liveSubtitleActive) {
+                SubtitleOverlay(
+                    segments = subtitleSegments,
+                    provisionalText = provisionalText,
+                    displayMode = SubtitleDisplayMode.TRANSLATION_ONLY,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                        .padding(bottom = 80.dp),
+                )
             }
 
             OverlayShowView(
