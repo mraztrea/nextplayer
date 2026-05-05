@@ -77,6 +77,7 @@
     <string name="preferred_audio_lang_description">Language of the audio track you want to use by default</string>
     <string name="subtitle">Subtitle</string>
     <string name="translation">Translation</string>
+    <string name="live_subtitle">Live subtitle</string>
     <string name="soniox_api_key">Soniox API key</string>
     <string name="soniox_api_key_placeholder">Paste your Soniox API key</string>
     <string name="source_language">Source language</string>

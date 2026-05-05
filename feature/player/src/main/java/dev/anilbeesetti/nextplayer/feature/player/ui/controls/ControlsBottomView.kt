@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
@@ -75,8 +76,10 @@ fun ControlsBottomView(
     controlsAlignment: Alignment.Horizontal,
     videoContentScale: VideoContentScale,
     isPipSupported: Boolean,
+    isLiveSubtitleActive: Boolean,
     onVideoContentScaleClick: () -> Unit,
     onVideoContentScaleLongClick: () -> Unit,
+    onLiveSubtitleClick: () -> Unit,
     onLockControlsClick: () -> Unit,
     onPictureInPictureClick: () -> Unit,
     onRotateClick: () -> Unit,
@@ -163,6 +166,17 @@ fun ControlsBottomView(
                 Icon(
                     painter = painterResource(videoContentScale.drawableRes()),
                     contentDescription = null,
+                )
+            }
+            PlayerButton(onClick = onLiveSubtitleClick) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_subtitle_track),
+                    contentDescription = stringResource(R.string.live_subtitle),
+                    tint = if (isLiveSubtitleActive) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        Color.White
+                    },
                 )
             }
             if (isPipSupported) {

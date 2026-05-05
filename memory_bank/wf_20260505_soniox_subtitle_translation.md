@@ -106,4 +106,4 @@ cd d:\Projects\Canhan\nextplayer
 - Module core:subtitle là NEW MODULE
 - SubtitleAudioProcessor được inject vào PlayerService nhưng chưa thêm vào ExoPlayer audio pipeline (cần thêm vào `ExoPlayer.Builder` qua custom RenderersFactory hoặc `setAudioProcessors`)
 - Phase 4-6 đã xong ở mức settings/runtime config + bilingual + provisional; Phase 7-8 (session stability, seek/pause, error UX đầy đủ) vẫn còn
-- `MediaPlayerScreen` hiện đã đọc display mode đã lưu, nhưng chưa phát hiện call site UI nào đang gọi `toggleLiveSubtitle()`; cần rà lại phần player controls nếu muốn bật/tắt từ UI trong app
+- Đã nối nút bật/tắt live subtitle vào `ControlsBottomView` và luồn callback sang `PlayerViewModel.toggleLiveSubtitle()` qua `MediaPlayerScreen`
