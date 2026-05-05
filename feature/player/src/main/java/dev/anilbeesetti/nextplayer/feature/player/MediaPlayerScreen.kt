@@ -1,5 +1,6 @@
 package dev.anilbeesetti.nextplayer.feature.player
 
+import android.content.res.Configuration
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
@@ -41,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -102,6 +104,17 @@ fun MediaPlayerScreen(
     onBackClick: () -> Unit,
     onPlayInBackgroundClick: () -> Unit,
 ) {
+    val configuration = LocalConfiguration.current
+    val subtitleDisplayMode = SubtitleDisplayMode.fromPreference(playerPreferences.displayMode)
+    val liveSubtitleBottomPadding = if (
+        subtitleDisplayMode == SubtitleDisplayMode.TRANSLATION_ONLY &&
+        configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    ) {
+        configuration.screenHeightDp.dp * 0.1f
+    } else {
+        80.dp
+    }
+
     val volumeState = rememberVolumeState(
         player = player,
         showVolumePanelIfHeadsetIsOn = playerPreferences.showSystemVolumePanel,
@@ -406,9 +419,9 @@ fun MediaPlayerScreen(
                 SubtitleOverlay(
                     segments = subtitleSegments,
                     provisionalText = provisionalText,
-                    displayMode = SubtitleDisplayMode.fromPreference(playerPreferences.displayMode),
+                    displayMode = subtitleDisplayMode,
                     modifier = Modifier.align(Alignment.BottomCenter)
-                        .padding(bottom = 80.dp),
+                        .padding(bottom = liveSubtitleBottomPadding),
                 )
             }
 

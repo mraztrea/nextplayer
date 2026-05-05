@@ -40,7 +40,7 @@ fun SubtitleOverlay(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         // Render final segments
-        val visibleSegments = segments.takeLast(3) // Show last 3 segments
+        val visibleSegments = segments.takeLast(2) // Show last 2 segments
         for (segment in visibleSegments) {
             when (displayMode) {
                 SubtitleDisplayMode.TRANSLATION_ONLY -> {
