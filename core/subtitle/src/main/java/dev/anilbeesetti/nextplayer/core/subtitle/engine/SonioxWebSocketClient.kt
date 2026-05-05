@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -95,51 +96,50 @@ class SonioxWebSocketClient @Inject constructor(
 
     /**
      * Quick validation: connect and immediately disconnect.
-     * Returns null on success, error message on failure.
+     * Returns null nếu API key hợp lệ, trả về message lỗi nếu không.
      */
-    suspend fun validateApiKey(apiKey: String): String? {
+    suspend fun validateApiKey(apiKey: String): String? = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
         val testConfig = SonioxSessionConfig(apiKey = apiKey)
-        var result: String? = null
-        val latch = java.util.concurrent.CountDownLatch(1)
+        var ws: WebSocket? = null
+        var settled = false
+
+        fun settle(result: String?) {
+            if (!settled) {
+                settled = true
+                ws?.close(1000, null)
+                cont.resume(result) {}
+            }
+        }
 
         val request = Request.Builder().url(WS_URL).build()
-        val ws = okHttpClient.newWebSocket(request, object : WebSocketListener() {
+        ws = okHttpClient.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                val configJson = buildConfigJson(testConfig)
-                webSocket.send(configJson)
-                // If we can open and send config, key is likely valid
-                // Wait briefly for potential error response
+                webSocket.send(buildConfigJson(testConfig))
+                // Chờ phản hồi lỗi trong 2 giây; nếu không có lỗi = key hợp lệ
                 scope.launch {
                     delay(2000)
-                    result = null
-                    webSocket.close(1000, "Validation complete")
-                    latch.countDown()
+                    settle(null)
                 }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                result = "Connection failed: ${t.message}"
-                latch.countDown()
+                settle("Connection failed: ${t.message}")
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                when (code) {
-                    CLOSE_INVALID_KEY, CLOSE_INVALID_KEY_ALT -> result = "Invalid API key"
-                    CLOSE_SUBSCRIPTION -> result = "Account/subscription issue"
-                    CLOSE_RATE_LIMIT -> result = "Rate limited"
+                val error = when (code) {
+                    CLOSE_INVALID_KEY, CLOSE_INVALID_KEY_ALT -> "Invalid API key"
+                    CLOSE_SUBSCRIPTION -> "Account/subscription issue"
+                    CLOSE_RATE_LIMIT -> "Rate limited"
+                    else -> null
                 }
-                if (result != null) latch.countDown()
+                if (error != null) settle(error)
             }
         })
 
-        try {
-            latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
-        } catch (_: InterruptedException) {
-            result = "Validation timeout"
-        } finally {
-            ws.close(1000, null)
+        cont.invokeOnCancellation {
+            ws?.close(1000, "Cancelled")
         }
-        return result
     }
 
     private fun doConnect() {
@@ -245,6 +245,13 @@ class SonioxWebSocketClient @Inject constructor(
 
             if (config.sourceLanguage != null) {
                 put("language_hints", JSONArray().apply { put(config.sourceLanguage) })
+            }
+
+            // Carryover context từ session trước để cải thiện độ chính xác
+            if (!config.carryoverContext.isNullOrBlank()) {
+                put("context", JSONObject().apply {
+                    put("text", "Recent conversation: ${config.carryoverContext}")
+                })
             }
         }
         return json.toString()

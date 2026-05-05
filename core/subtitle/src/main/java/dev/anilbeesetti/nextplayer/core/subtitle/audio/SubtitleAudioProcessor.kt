@@ -25,7 +25,6 @@ class SubtitleAudioProcessor @Inject constructor(
 
     private var inputAudioFormat = AudioFormat.NOT_SET
     private var isActive = false
-    private var inputBuffer = AudioProcessor.EMPTY_BUFFER
     private var outputBuffer = AudioProcessor.EMPTY_BUFFER
     private var inputEnded = false
 
@@ -59,7 +58,7 @@ class SubtitleAudioProcessor @Inject constructor(
     override fun queueInput(inputBuffer: ByteBuffer) {
         if (!isActive || inputBuffer.remaining() == 0) return
 
-        // Tap: copy data to batcher if enabled
+        // Tap: copy data to batcher if enabled (dùng duplicate để không ảnh hưởng position của inputBuffer)
         if (isEnabled) {
             val duplicate = inputBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
             audioBatcher.feedAudio(
@@ -69,9 +68,10 @@ class SubtitleAudioProcessor @Inject constructor(
             )
         }
 
-        // Pass through: set output = input (no modification)
-        this.outputBuffer = inputBuffer
-        this.inputBuffer = AudioProcessor.EMPTY_BUFFER
+        // Pass-through: tạo view độc lập của dữ liệu input để trả về từ getOutput()
+        // Sau đó đánh dấu inputBuffer đã được tiêu thụ hoàn toàn (theo contract của Media3 AudioProcessor)
+        outputBuffer = inputBuffer.duplicate()
+        inputBuffer.position(inputBuffer.limit())
     }
 
     override fun queueEndOfStream() {
@@ -91,7 +91,6 @@ class SubtitleAudioProcessor @Inject constructor(
 
     override fun flush() {
         outputBuffer = AudioProcessor.EMPTY_BUFFER
-        inputBuffer = AudioProcessor.EMPTY_BUFFER
         inputEnded = false
     }
 

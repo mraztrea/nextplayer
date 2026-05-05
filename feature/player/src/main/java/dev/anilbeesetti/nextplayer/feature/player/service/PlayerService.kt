@@ -22,6 +22,8 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.CommandButton
 import androidx.media3.session.CommandButton.ICON_UNDEFINED
@@ -527,7 +529,7 @@ class PlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        val renderersFactory = NextRenderersFactory(applicationContext)
+        val renderersFactory = SubtitleAwareRenderersFactory(applicationContext, subtitleAudioProcessor)
             .setEnableDecoderFallback(true)
             .setExtensionRendererMode(
                 when (playerPreferences.decoderPriority) {
@@ -727,6 +729,30 @@ class PlayerService : MediaSessionService() {
                 .build(),
         )
         .build()
+}
+
+/**
+ * RenderersFactory tùy chỉnh thêm SubtitleAudioProcessor vào audio pipeline của ExoPlayer.
+ * SubtitleAudioProcessor tap audio mà không thay đổi dữ liệu (read-only tap).
+ */
+@OptIn(UnstableApi::class)
+private class SubtitleAwareRenderersFactory(
+    context: android.content.Context,
+    private val subtitleAudioProcessor: SubtitleAudioProcessor,
+) : NextRenderersFactory(context) {
+    override fun buildAudioSink(
+        context: android.content.Context,
+        enableFloatOutput: Boolean,
+        enableAudioTrackPlaybackParams: Boolean,
+    ): AudioSink {
+        return DefaultAudioSink.Builder(context)
+            .setEnableFloatOutput(enableFloatOutput)
+            .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+            .setAudioProcessorChain(
+                DefaultAudioSink.DefaultAudioProcessorChain(subtitleAudioProcessor),
+            )
+            .build()
+    }
 }
 
 @get:UnstableApi

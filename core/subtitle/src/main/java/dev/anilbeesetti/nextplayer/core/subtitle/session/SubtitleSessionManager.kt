@@ -135,11 +135,18 @@ class SubtitleSessionManager @Inject constructor() {
 
     private fun cleanupStaleSegments(segments: MutableList<SubtitleSegment>) {
         val now = System.currentTimeMillis()
-        val pendingCount = segments.count { it.status == SegmentStatus.ORIGINAL }
 
+        // Xóa các segment hết thời gian chờ translation
         segments.removeAll { segment ->
             segment.status == SegmentStatus.ORIGINAL &&
-                (now - segment.createdAt > STALE_TIMEOUT_MS || pendingCount > MAX_PENDING_ORIGINALS)
+                now - segment.createdAt > STALE_TIMEOUT_MS
+        }
+
+        // Giới hạn số lượng pending originals: xóa những cái cũ nhất
+        val pending = segments.filter { it.status == SegmentStatus.ORIGINAL }
+        if (pending.size > MAX_PENDING_ORIGINALS) {
+            val toRemove = pending.take(pending.size - MAX_PENDING_ORIGINALS).map { it.id }.toSet()
+            segments.removeAll { it.id in toRemove }
         }
     }
 }

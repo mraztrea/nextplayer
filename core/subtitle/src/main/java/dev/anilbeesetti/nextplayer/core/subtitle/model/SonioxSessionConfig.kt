@@ -9,4 +9,6 @@ data class SonioxSessionConfig(
     val sourceLanguage: String? = null,
     val targetLanguage: String = "vi",
     val endpointDelayMs: Int = 3000,
+    /** Carryover context từ session trước để cải thiện độ chính xác khi reset */
+    val carryoverContext: String? = null,
 )
