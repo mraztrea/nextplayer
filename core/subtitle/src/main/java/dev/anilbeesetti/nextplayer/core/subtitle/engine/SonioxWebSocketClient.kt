@@ -121,6 +121,17 @@ class SonioxWebSocketClient @Inject constructor(
         openSocket(config = config, mode = ConnectMode.ROTATE)
     }
 
+    fun reconnectImmediately(config: SonioxSessionConfig) {
+        this.config = config
+        isManualStop = false
+        reconnectAttempt = 0
+        reconnectJob?.cancel()
+        keepaliveJob?.cancel()
+        keepaliveJob = null
+        closeAllSockets(reason = "Playback reset")
+        openSocket(config = config, mode = ConnectMode.INITIAL)
+    }
+
     /**
      * Quick validation: connect and immediately disconnect.
      * Returns null nếu API key hợp lệ, trả về message lỗi nếu không.

@@ -195,6 +195,7 @@ fun MediaPlayerScreen(
     val liveSubtitleActive by viewModel.liveSubtitleActive.collectAsStateWithLifecycle()
     val subtitleSegments by viewModel.subtitleSegments.collectAsStateWithLifecycle()
     val provisionalText by viewModel.provisionalText.collectAsStateWithLifecycle()
+    val lookaheadState by viewModel.lookaheadState.collectAsStateWithLifecycle()
     val subtitleNotice by viewModel.subtitleNotice.collectAsStateWithLifecycle()
 
     LaunchedEffect(subtitleNotice) {
@@ -420,6 +421,7 @@ fun MediaPlayerScreen(
                     segments = subtitleSegments,
                     provisionalText = provisionalText,
                     displayMode = subtitleDisplayMode,
+                    isFallbackActive = lookaheadState.isFallbackActive,
                     modifier = Modifier.align(Alignment.BottomCenter)
                         .padding(bottom = liveSubtitleBottomPadding),
                 )

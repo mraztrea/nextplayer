@@ -48,6 +48,7 @@ import dev.anilbeesetti.nextplayer.core.model.DecoderPriority
 import dev.anilbeesetti.nextplayer.core.model.LoopMode
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.Resume
+import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngine
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.R
@@ -78,7 +79,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
@@ -90,6 +93,7 @@ class PlayerService : MediaSessionService() {
     private val serviceScope: CoroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var mediaSession: MediaSession? = null
     private var artworkLoadJob: Job? = null
+    private var subtitleSyncJob: Job? = null
 
     @Inject
     lateinit var preferencesRepository: PreferencesRepository
@@ -102,6 +106,9 @@ class PlayerService : MediaSessionService() {
 
     @Inject
     lateinit var subtitleAudioProcessor: SubtitleAudioProcessor
+
+    @Inject
+    lateinit var subtitleEngine: SubtitleEngine
 
     private val playerPreferences: PlayerPreferences
         get() = preferencesRepository.playerPreferences.value
@@ -119,6 +126,9 @@ class PlayerService : MediaSessionService() {
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) return
             isMediaItemReady = false
             loadArtworkForCurrentMediaItem()
+            mediaItem?.let {
+                subtitleEngine.onMediaItemChanged(it.mediaId, mediaSession?.player?.currentPosition ?: 0L)
+            }
             mediaItem?.mediaMetadata?.let { metadata ->
                 mediaSession?.player?.run {
                     setPlaybackSpeed(metadata.playbackSpeed ?: playerPreferences.defaultPlaybackSpeed)
@@ -141,12 +151,29 @@ class PlayerService : MediaSessionService() {
             val oldMediaItem = oldPosition.mediaItem ?: return
 
             when (reason) {
-                DISCONTINUITY_REASON_SEEK,
-                DISCONTINUITY_REASON_AUTO_TRANSITION,
-                -> {
-                    if (newPosition.mediaItem == null || oldMediaItem == newPosition.mediaItem) return
+                DISCONTINUITY_REASON_SEEK -> {
+                    subtitleEngine.onSeek(newPosition.positionMs)
+                    if (newPosition.mediaItem == null || oldMediaItem == newPosition.mediaItem) {
+                        return
+                    }
+                    val updatedPosition = oldPosition.positionMs
+                    mediaSession?.player?.replaceMediaItem(
+                        oldPosition.mediaItemIndex,
+                        oldMediaItem.copy(positionMs = updatedPosition),
+                    )
+                    serviceScope.launch {
+                        mediaRepository.updateMediumPosition(
+                            uri = oldMediaItem.mediaId,
+                            position = updatedPosition,
+                        )
+                    }
+                }
 
-                    val updatedPosition = oldPosition.positionMs.takeIf { reason == DISCONTINUITY_REASON_SEEK } ?: C.TIME_UNSET
+                DISCONTINUITY_REASON_AUTO_TRANSITION -> {
+                    val newMediaItem = newPosition.mediaItem ?: return
+                    if (oldMediaItem == newMediaItem) return
+                    subtitleEngine.onMediaItemChanged(newMediaItem.mediaId, newPosition.positionMs)
+                    val updatedPosition = C.TIME_UNSET
                     mediaSession?.player?.replaceMediaItem(
                         oldPosition.mediaItemIndex,
                         oldMediaItem.copy(positionMs = updatedPosition),
@@ -196,6 +223,7 @@ class PlayerService : MediaSessionService() {
 
             val audioTrackIndex = player.getManuallySelectedTrackIndex(C.TRACK_TYPE_AUDIO)
             val subtitleTrackIndex = player.getManuallySelectedTrackIndex(C.TRACK_TYPE_TEXT)
+            subtitleEngine.onAudioTrackChanged(audioTrackIndex?.toString())
 
             if (audioTrackIndex != null) {
                 serviceScope.launch {
@@ -300,6 +328,7 @@ class PlayerService : MediaSessionService() {
                     )
                 }
             }
+            subtitleEngine.onPlayWhenReadyChanged(isPlaying)
         }
 
         override fun onRepeatModeChanged(repeatMode: Int) {
@@ -569,6 +598,13 @@ class PlayerService : MediaSessionService() {
                 }
             }
 
+        subtitleSyncJob = serviceScope.launch {
+            while (isActive) {
+                subtitleEngine.onPlaybackPosition(player.currentPosition)
+                delay(100)
+            }
+        }
+
         try {
             mediaSession = MediaSession.Builder(this, player).apply {
                 setSessionActivity(
@@ -606,8 +642,10 @@ class PlayerService : MediaSessionService() {
     override fun onDestroy() {
         super.onDestroy()
         artworkLoadJob?.cancel()
+        subtitleSyncJob?.cancel()
         loudnessEnhancer?.release()
         loudnessEnhancer = null
+        subtitleEngine.onStop()
         mediaSession?.run {
             player.clearMediaItems()
             player.stop()

@@ -19,8 +19,8 @@
 
 **Purpose**: Chuẩn bị điểm mở rộng chung cho lookahead subtitle trong module hiện có
 
-- [ ] T001 Cập nhật wiring chung cho lookahead trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/di/SubtitleModule.kt`
-- [ ] T002 Cập nhật ghi chú xác minh và metric mục tiêu cho feature trong `specs/002-lookahead-subtitle-latency/quickstart.md`
+- [X] T001 Cập nhật wiring chung cho lookahead trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/di/SubtitleModule.kt`
+- [X] T002 Cập nhật ghi chú xác minh và metric mục tiêu cho feature trong `specs/002-lookahead-subtitle-latency/quickstart.md`
 
 ---
 
@@ -30,12 +30,12 @@
 
 **⚠️ CRITICAL**: Phải hoàn thành trước khi bắt đầu bất kỳ user story nào
 
-- [ ] T003 [P] Mở rộng `SubtitleSegment` với timing và generation fields trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/SubtitleSegment.kt`
-- [ ] T004 [P] Tạo `LookaheadAudioChunk` trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/LookaheadAudioChunk.kt`
-- [ ] T005 [P] Tạo `LookaheadPipelineStatus` trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/LookaheadPipelineStatus.kt`
-- [ ] T006 [P] Tạo `LookaheadSessionState` trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/LookaheadSessionState.kt`
-- [ ] T007 Cập nhật callback contract để giữ được timing token gốc trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SonioxTokenParser.kt`
-- [ ] T008 Cập nhật public interface và state flows của engine cho timed render / playback sync trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt`
+- [X] T003 [P] Mở rộng `SubtitleSegment` với timing và generation fields trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/SubtitleSegment.kt`
+- [X] T004 [P] Tạo `LookaheadAudioChunk` trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/LookaheadAudioChunk.kt`
+- [X] T005 [P] Tạo `LookaheadPipelineStatus` trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/LookaheadPipelineStatus.kt`
+- [X] T006 [P] Tạo `LookaheadSessionState` trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/LookaheadSessionState.kt`
+- [X] T007 Cập nhật callback contract để giữ được timing token gốc trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SonioxTokenParser.kt`
+- [X] T008 Cập nhật public interface và state flows của engine cho timed render / playback sync trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt`
 
 **Checkpoint**: Runtime model và interface nền tảng sẵn sàng cho triển khai lookahead.
 
@@ -49,15 +49,15 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implement pipeline giải mã lookahead có lead khoảng 5 giây trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/LookaheadAudioPipeline.kt`
-- [ ] T010 [US1] Parse và gom `start_ms`/`end_ms` của original final tokens trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SonioxTokenParser.kt`
-- [ ] T011 [US1] Chuyển `SubtitleSessionManager` sang timed sync buffer với pending original queue trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/session/SubtitleSessionManager.kt`
-- [ ] T012 [US1] Orchestrate lookahead audio -> Soniox -> timed segments trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt`
-- [ ] T013 [US1] Cập nhật `SonioxWebSocketClient` để giữ nguyên transport nhưng hỗ trợ payload timing cần cho timed subtitle flow trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SonioxWebSocketClient.kt`
-- [ ] T014 [US1] Đồng bộ `ExoPlayer.currentPosition` vào subtitle engine trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/service/PlayerService.kt`
-- [ ] T015 [US1] Expose visible timed subtitle state cho UI trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
-- [ ] T016 [US1] Chỉ render subtitle đã tới lượt và chặn future spoiler trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/ui/SubtitleOverlay.kt`
-- [ ] T017 [US1] Nối timed subtitle state vào màn hình player trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/MediaPlayerScreen.kt`
+- [X] T009 [US1] Implement pipeline giải mã lookahead có lead khoảng 5 giây trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/LookaheadAudioPipeline.kt`
+- [X] T010 [US1] Parse và gom `start_ms`/`end_ms` của original final tokens trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SonioxTokenParser.kt`
+- [X] T011 [US1] Chuyển `SubtitleSessionManager` sang timed sync buffer với pending original queue trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/session/SubtitleSessionManager.kt`
+- [X] T012 [US1] Orchestrate lookahead audio -> Soniox -> timed segments trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt`
+- [X] T013 [US1] Cập nhật `SonioxWebSocketClient` để giữ nguyên transport nhưng hỗ trợ payload timing cần cho timed subtitle flow trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SonioxWebSocketClient.kt`
+- [X] T014 [US1] Đồng bộ `ExoPlayer.currentPosition` vào subtitle engine trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/service/PlayerService.kt`
+- [X] T015 [US1] Expose visible timed subtitle state cho UI trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
+- [X] T016 [US1] Chỉ render subtitle đã tới lượt và chặn future spoiler trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/ui/SubtitleOverlay.kt`
+- [X] T017 [US1] Nối timed subtitle state vào màn hình player trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/MediaPlayerScreen.kt`
 
 **Checkpoint**: User Story 1 hoàn thành khi subtitle lookahead không spoiler và render đúng media-time.
 
@@ -71,12 +71,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Thêm reset flow theo `generationId` cho seek/media change/audio-track change trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt`
-- [ ] T019 [US2] Hủy queue cũ và seek lại decoder lookahead theo generation mới trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/LookaheadAudioPipeline.kt`
-- [ ] T020 [US2] Xóa visible buffer, pending queue, và provisional state khi generation đổi trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/session/SubtitleSessionManager.kt`
-- [ ] T021 [US2] Xử lý session rotation/reconnect an toàn khi seek-driven reset trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SonioxWebSocketClient.kt`
-- [ ] T022 [US2] Phát tín hiệu seek, media transition, play/pause, và audio-track switch từ player sang engine trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/service/PlayerService.kt`
-- [ ] T023 [US2] Đồng bộ notice/state của live subtitle với vòng đời playback trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
+- [X] T018 [US2] Thêm reset flow theo `generationId` cho seek/media change/audio-track change trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt`
+- [X] T019 [US2] Hủy queue cũ và seek lại decoder lookahead theo generation mới trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/LookaheadAudioPipeline.kt`
+- [X] T020 [US2] Xóa visible buffer, pending queue, và provisional state khi generation đổi trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/session/SubtitleSessionManager.kt`
+- [X] T021 [US2] Xử lý session rotation/reconnect an toàn khi seek-driven reset trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SonioxWebSocketClient.kt`
+- [X] T022 [US2] Phát tín hiệu seek, media transition, play/pause, và audio-track switch từ player sang engine trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/service/PlayerService.kt`
+- [X] T023 [US2] Đồng bộ notice/state của live subtitle với vòng đời playback trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
 
 **Checkpoint**: User Story 2 hoàn thành khi mọi reset theo playback lifecycle đều loại bỏ sạch dữ liệu cũ và không còn “bóng ma” subtitle.
 
@@ -90,11 +90,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Thêm high-water/low-water throttling và queue bounds trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/LookaheadAudioPipeline.kt`
+- [X] T024 [US3] Thêm high-water/low-water throttling và queue bounds trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/LookaheadAudioPipeline.kt`
 - [ ] T025 [US3] Bổ sung cleanup muộn, fallback path, và health state cho timed subtitle session trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/session/SubtitleSessionManager.kt`
 - [ ] T026 [US3] Kích hoạt fallback về current-position tap khi lookahead không khả dụng trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/SubtitleAudioProcessor.kt` và `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt`
 - [ ] T027 [US3] Expose telemetry cho lead, generation, fallback, và transport health trong `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt` và `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SonioxWebSocketClient.kt`
-- [ ] T028 [US3] Hiển thị trạng thái fallback/recovery thân thiện trên player trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt` và `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/ui/SubtitleOverlay.kt`
+- [X] T028 [US3] Hiển thị trạng thái fallback/recovery thân thiện trên player trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt` và `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/ui/SubtitleOverlay.kt`
 
 **Checkpoint**: User Story 3 hoàn thành khi lookahead có giới hạn tài nguyên rõ ràng, có fallback an toàn, và có đủ telemetry để đo latency/performance.
 
@@ -105,8 +105,8 @@
 **Purpose**: Hoàn thiện tài liệu triển khai, xác minh thủ công, và tinh chỉnh hằng số liên story
 
 - [ ] T029 [P] Rà soát và cập nhật contract timing/render cuối cùng trong `specs/002-lookahead-subtitle-latency/contracts/soniox-timed-token-mapping.md` và `specs/002-lookahead-subtitle-latency/contracts/subtitle-sync-player.md`
-- [ ] T030 [P] Chạy lại checklist xác minh thủ công và cập nhật bước đo latency/seek/fallback trong `specs/002-lookahead-subtitle-latency/quickstart.md`
-- [ ] T031 [P] Ghi lại workflow triển khai và lưu ý hiệu năng vào `memory_bank/wf_20260505_lookahead_subtitle_latency_plan.md`
+- [X] T030 [P] Chạy lại checklist xác minh thủ công và cập nhật bước đo latency/seek/fallback trong `specs/002-lookahead-subtitle-latency/quickstart.md`
+- [X] T031 [P] Ghi lại workflow triển khai và lưu ý hiệu năng vào `memory_bank/wf_20260505_lookahead_subtitle_latency_plan.md`
 
 ---
 

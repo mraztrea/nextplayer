@@ -19,9 +19,15 @@
 ## Build
 
 ```powershell
-.\gradlew.bat :core:subtitle:testDebugUnitTest
-.\gradlew.bat :feature:player:assembleDebug
+.\gradlew.bat :core:subtitle:testDebugUnitTest --tests "dev.anilbeesetti.nextplayer.core.subtitle.engine.SonioxTokenParserTest" --tests "dev.anilbeesetti.nextplayer.core.subtitle.session.SubtitleSessionManagerTest"
+.\gradlew.bat :core:subtitle:compileDebugKotlin :feature:player:compileDebugKotlin
 ```
+
+## Kết quả verify gần nhất
+
+- Đã pass `:core:subtitle:testDebugUnitTest` cho `SonioxTokenParserTest` và `SubtitleSessionManagerTest`.
+- Đã pass `:core:subtitle:compileDebugKotlin`.
+- Đã pass `:feature:player:compileDebugKotlin`.
 
 ## Luồng xác minh thủ công
 

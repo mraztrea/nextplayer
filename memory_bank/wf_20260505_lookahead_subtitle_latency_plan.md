@@ -36,3 +36,32 @@ Tạo bộ artifact `/speckit-plan` cho feature tối ưu độ trễ subtitle d
 
 - Không cần migrate database.
 - Chưa chạy build/test trong bước plan này.
+
+## Cập nhật implement
+
+### Code đã thêm/sửa
+
+- Thêm `LookaheadAudioPipeline` dùng `MediaExtractor` + `MediaCodec` để giải mã audio đi trước và giữ lead khoảng 5 giây.
+- Mở rộng `SubtitleEngine` để nhận playback sync từ player: `currentPosition`, seek, media change, play/pause, audio track change.
+- Dùng `generationId` để reset timed subtitle state khi seek, chuyển media, hoặc đổi audio track.
+- Thêm hard reconnect path ở `SonioxWebSocketClient` cho reset do playback lifecycle; vẫn giữ soft rotate cho periodic session reset.
+- Nối `PlayerService` vào subtitle engine bằng ticker `currentPosition` 100ms và các callback lifecycle của ExoPlayer.
+- Cập nhật `PlayerViewModel`, `SubtitleOverlay`, `MediaPlayerScreen` để render timed subtitle state và hiển thị notice khi fallback.
+
+### Kiểm chứng đã chạy
+
+```powershell
+.\gradlew.bat :core:subtitle:testDebugUnitTest --tests "dev.anilbeesetti.nextplayer.core.subtitle.engine.SonioxTokenParserTest" --tests "dev.anilbeesetti.nextplayer.core.subtitle.session.SubtitleSessionManagerTest"
+.\gradlew.bat :core:subtitle:compileDebugKotlin :feature:player:compileDebugKotlin
+```
+
+- `SonioxTokenParserTest` pass
+- `SubtitleSessionManagerTest` pass
+- `:core:subtitle:compileDebugKotlin` pass
+- `:feature:player:compileDebugKotlin` pass
+
+### Ghi chú hiệu năng / rủi ro còn lại
+
+- Ticker sync ở `PlayerService` đang chạy mỗi 100ms để gate subtitle theo media-time; đây là lựa chọn thực dụng để có sync ổn định trước khi tối ưu sâu hơn.
+- Fallback hiện chuyển về current-position tap nếu lookahead pipeline lỗi; chưa có telemetry transport/lead đầy đủ cho toàn bộ Phase 5.
+- Chưa chạy xác minh thủ công trên thiết bị thật cho các kịch bản seek/audio-track/fallback; mới xác minh bằng unit test + compile.

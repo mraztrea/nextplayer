@@ -28,6 +28,7 @@ fun SubtitleOverlay(
     segments: List<SubtitleSegment>,
     provisionalText: String,
     displayMode: SubtitleDisplayMode,
+    isFallbackActive: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val bgColor = Color.Black.copy(alpha = 0.6f)
@@ -39,8 +40,29 @@ fun SubtitleOverlay(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        AnimatedVisibility(
+            visible = isFallbackActive,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Text(
+                text = "Fallback subtitle mode",
+                color = Color.White.copy(alpha = 0.8f),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .background(
+                        color = Color.Black.copy(alpha = 0.35f),
+                        shape = RoundedCornerShape(4.dp),
+                    )
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
+
         // Render final segments
-        val visibleSegments = segments.takeLast(2) // Show last 2 segments
+        val visibleSegments = segments
+            .sortedBy { it.targetStartMs }
+            .takeLast(2)
         for (segment in visibleSegments) {
             when (displayMode) {
                 SubtitleDisplayMode.TRANSLATION_ONLY -> {

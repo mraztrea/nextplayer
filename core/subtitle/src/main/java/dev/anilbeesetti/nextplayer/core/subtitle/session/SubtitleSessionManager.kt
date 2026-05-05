@@ -20,6 +20,9 @@ class SubtitleSessionManager @Inject constructor() {
     }
 
     private val idCounter = AtomicLong(0)
+    private var currentGenerationId = 0L
+    private var generationBasePositionMs = 0L
+    private var currentPlaybackPositionMs = 0L
 
     // Display buffer (trimmable) — shown on overlay
     private val _displaySegments = MutableStateFlow<List<SubtitleSegment>>(emptyList())
@@ -27,6 +30,7 @@ class SubtitleSessionManager @Inject constructor() {
 
     // Session log (non-trimmable) — full history
     private val sessionLog = mutableListOf<SubtitleSegment>()
+    private val activeSegments = mutableListOf<SubtitleSegment>()
 
     // Recent translations for carryover context
     private val recentTranslations = mutableListOf<String>()
@@ -38,7 +42,35 @@ class SubtitleSessionManager @Inject constructor() {
     private val _provisionalSpeaker = MutableStateFlow<String?>(null)
     val provisionalSpeaker: StateFlow<String?> = _provisionalSpeaker.asStateFlow()
 
-    fun onOriginal(text: String, speaker: String?, language: String?, confidence: Float?) {
+    fun beginGeneration(generationId: Long, basePositionMs: Long, clearHistory: Boolean = true) {
+        currentGenerationId = generationId
+        generationBasePositionMs = basePositionMs
+        currentPlaybackPositionMs = basePositionMs
+        activeSegments.clear()
+        if (clearHistory) {
+            sessionLog.clear()
+            recentTranslations.clear()
+        }
+        _displaySegments.value = emptyList()
+        _provisionalText.value = ""
+        _provisionalSpeaker.value = null
+    }
+
+    fun onPlaybackPosition(positionMs: Long) {
+        currentPlaybackPositionMs = positionMs
+        publishDisplaySegments()
+    }
+
+    fun onOriginal(
+        text: String,
+        speaker: String?,
+        language: String?,
+        confidence: Float?,
+        startMs: Long?,
+        endMs: Long?,
+    ) {
+        val safeStartMs = startMs ?: return
+        val safeEndMs = endMs ?: safeStartMs
         val segment = SubtitleSegment(
             id = idCounter.incrementAndGet(),
             originalText = text,
@@ -46,12 +78,16 @@ class SubtitleSessionManager @Inject constructor() {
             speaker = speaker,
             language = language,
             confidence = confidence,
+            sourceStartMs = safeStartMs,
+            sourceEndMs = safeEndMs,
+            targetStartMs = generationBasePositionMs + safeStartMs,
+            targetEndMs = generationBasePositionMs + safeEndMs,
+            generationId = currentGenerationId,
         )
 
         sessionLog.add(segment)
-        val current = _displaySegments.value.toMutableList()
-        current.add(segment)
-    publishDisplaySegments(current)
+        activeSegments.add(segment)
+        publishDisplaySegments()
 
         // Clear provisional since we got a final
         _provisionalText.value = ""
@@ -60,15 +96,16 @@ class SubtitleSessionManager @Inject constructor() {
 
     fun onTranslation(text: String) {
         // Find the oldest ORIGINAL segment without translation (FIFO)
-        val current = _displaySegments.value.toMutableList()
-        val targetIndex = current.indexOfFirst { it.status == SegmentStatus.ORIGINAL }
+        val targetIndex = activeSegments.indexOfFirst {
+            it.generationId == currentGenerationId && it.status == SegmentStatus.ORIGINAL
+        }
 
         if (targetIndex >= 0) {
-            val updated = current[targetIndex].copy(
+            val updated = activeSegments[targetIndex].copy(
                 translationText = text,
                 status = SegmentStatus.TRANSLATED,
             )
-            current[targetIndex] = updated
+            activeSegments[targetIndex] = updated
 
             // Update session log too
             val logIndex = sessionLog.indexOfLast { it.id == updated.id }
@@ -84,7 +121,7 @@ class SubtitleSessionManager @Inject constructor() {
 
         _provisionalText.value = ""
         _provisionalSpeaker.value = null
-        publishDisplaySegments(current)
+        publishDisplaySegments()
     }
 
     fun onProvisional(text: String, speaker: String?, language: String?) {
@@ -105,11 +142,15 @@ class SubtitleSessionManager @Inject constructor() {
 
     fun reset() {
         _displaySegments.value = emptyList()
+        activeSegments.clear()
         sessionLog.clear()
         recentTranslations.clear()
         _provisionalText.value = ""
         _provisionalSpeaker.value = null
         idCounter.set(0)
+        currentGenerationId = 0L
+        generationBasePositionMs = 0L
+        currentPlaybackPositionMs = 0L
     }
 
     fun getCarryoverContext(): String {
@@ -122,8 +163,7 @@ class SubtitleSessionManager @Inject constructor() {
     }
 
     fun trimDisplayBuffer() {
-        val current = _displaySegments.value.toMutableList()
-        publishDisplaySegments(current)
+        publishDisplaySegments()
     }
 
     private fun trimDisplayBuffer(segments: MutableList<SubtitleSegment>) {
@@ -147,6 +187,16 @@ class SubtitleSessionManager @Inject constructor() {
         }
     }
 
+    private fun publishDisplaySegments() {
+        val visibleSegments = activeSegments
+            .filter { segment ->
+                segment.generationId == currentGenerationId &&
+                    currentPlaybackPositionMs in segment.targetStartMs..segment.targetEndMs
+            }
+            .toMutableList()
+        publishDisplaySegments(visibleSegments)
+    }
+
     private fun publishDisplaySegments(segments: MutableList<SubtitleSegment>) {
         cleanupStaleSegments(segments)
         trimDisplayBuffer(segments)
@@ -154,18 +204,19 @@ class SubtitleSessionManager @Inject constructor() {
     }
 
     private fun cleanupStaleSegments(segments: MutableList<SubtitleSegment>) {
-        val now = System.currentTimeMillis()
-
-        // Xóa các segment hết thời gian chờ translation
-        segments.removeAll { segment ->
-            segment.status == SegmentStatus.ORIGINAL &&
-                now - segment.createdAt > STALE_TIMEOUT_MS
+        activeSegments.removeAll { segment ->
+            segment.generationId != currentGenerationId ||
+                (segment.status == SegmentStatus.ORIGINAL &&
+                    currentPlaybackPositionMs > segment.targetEndMs + STALE_TIMEOUT_MS) ||
+                currentPlaybackPositionMs > segment.targetEndMs + STALE_TIMEOUT_MS
         }
 
-        // Giới hạn số lượng pending originals: xóa những cái cũ nhất
-        val pending = segments.filter { it.status == SegmentStatus.ORIGINAL }
+        val pending = activeSegments.filter {
+            it.generationId == currentGenerationId && it.status == SegmentStatus.ORIGINAL
+        }
         if (pending.size > MAX_PENDING_ORIGINALS) {
             val toRemove = pending.take(pending.size - MAX_PENDING_ORIGINALS).map { it.id }.toSet()
+            activeSegments.removeAll { it.id in toRemove }
             segments.removeAll { it.id in toRemove }
         }
     }

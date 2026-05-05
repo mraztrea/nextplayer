@@ -14,6 +14,8 @@ import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngine
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleStartResult
+import dev.anilbeesetti.nextplayer.core.subtitle.model.LookaheadPipelineStatus
+import dev.anilbeesetti.nextplayer.core.subtitle.model.LookaheadSessionState
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleEngineStatus
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleSegment
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
@@ -49,6 +51,7 @@ class PlayerViewModel @Inject constructor(
     val subtitleSegments: StateFlow<List<SubtitleSegment>> = subtitleEngine.displaySegments
     val provisionalText: StateFlow<String> = subtitleEngine.provisionalText
     val subtitleStatus: StateFlow<SubtitleEngineStatus> = subtitleEngine.status
+    val lookaheadState: StateFlow<LookaheadSessionState> = subtitleEngine.lookaheadState
 
     private val internalUiState = MutableStateFlow(
         PlayerUiState(
@@ -68,6 +71,20 @@ class PlayerViewModel @Inject constructor(
             subtitleEngine.status.collect { status ->
                 if (status == SubtitleEngineStatus.ERROR || status == SubtitleEngineStatus.STOPPED || status == SubtitleEngineStatus.IDLE) {
                     _liveSubtitleActive.value = false
+                }
+                if (status == SubtitleEngineStatus.ACTIVE) {
+                    _subtitleNotice.value = null
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            subtitleEngine.lookaheadState.collect { state ->
+                _subtitleNotice.value = when {
+                    !_liveSubtitleActive.value -> null
+                    state.isFallbackActive -> "Lookahead unavailable, using live tap"
+                    state.status == LookaheadPipelineStatus.WARMING -> "Preparing lookahead subtitle..."
+                    else -> _subtitleNotice.value?.takeIf { it == CONNECTING_TO_SONIOX_MESSAGE }
                 }
             }
         }

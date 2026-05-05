@@ -5,6 +5,8 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import dev.anilbeesetti.nextplayer.core.subtitle.audio.LookaheadAudioPipeline
+import dev.anilbeesetti.nextplayer.core.subtitle.audio.MediaCodecLookaheadAudioPipeline
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngine
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngineImpl
 import kotlinx.coroutines.CoroutineScope
@@ -50,4 +52,8 @@ abstract class SubtitleBindsModule {
     @Binds
     @Singleton
     abstract fun bindSubtitleEngine(impl: SubtitleEngineImpl): SubtitleEngine
+
+    @Binds
+    @Singleton
+    abstract fun bindLookaheadAudioPipeline(impl: MediaCodecLookaheadAudioPipeline): LookaheadAudioPipeline
 }
