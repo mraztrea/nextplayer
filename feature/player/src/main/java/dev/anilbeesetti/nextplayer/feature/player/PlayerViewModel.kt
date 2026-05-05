@@ -40,6 +40,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     var playWhenReady: Boolean = true
+    private var lastLookaheadNoticeKey: String? = null
 
     // Live subtitle state
     private val _liveSubtitleActive = MutableStateFlow(false)
@@ -71,6 +72,7 @@ class PlayerViewModel @Inject constructor(
             subtitleEngine.status.collect { status ->
                 if (status == SubtitleEngineStatus.ERROR || status == SubtitleEngineStatus.STOPPED || status == SubtitleEngineStatus.IDLE) {
                     _liveSubtitleActive.value = false
+                    lastLookaheadNoticeKey = null
                 }
                 if (status == SubtitleEngineStatus.ACTIVE) {
                     _subtitleNotice.value = null
@@ -80,11 +82,14 @@ class PlayerViewModel @Inject constructor(
 
         viewModelScope.launch {
             subtitleEngine.lookaheadState.collect { state ->
-                _subtitleNotice.value = when {
-                    !_liveSubtitleActive.value -> null
-                    state.isFallbackActive -> "Lookahead unavailable, using live tap"
-                    state.status == LookaheadPipelineStatus.WARMING -> "Preparing lookahead subtitle..."
-                    else -> _subtitleNotice.value?.takeIf { it == CONNECTING_TO_SONIOX_MESSAGE }
+                val noticeResult = resolveLookaheadNotice(
+                    liveSubtitleActive = _liveSubtitleActive.value,
+                    state = state,
+                    lastNoticeKey = lastLookaheadNoticeKey,
+                )
+                lastLookaheadNoticeKey = noticeResult.noticeKey
+                if (noticeResult.notice != null) {
+                    _subtitleNotice.value = noticeResult.notice
                 }
             }
         }
@@ -143,6 +148,7 @@ class PlayerViewModel @Inject constructor(
         when (val startResult = subtitleEngine.start()) {
             SubtitleStartResult.Started -> {
                 _liveSubtitleActive.value = true
+                lastLookaheadNoticeKey = null
                 _subtitleNotice.value = CONNECTING_TO_SONIOX_MESSAGE
                 preferencesRepository.updatePlayerPreferences {
                     it.copy(liveSubtitleEnabled = true)
@@ -160,6 +166,7 @@ class PlayerViewModel @Inject constructor(
     suspend fun stopLiveSubtitle() {
         subtitleEngine.stop()
         _liveSubtitleActive.value = false
+        lastLookaheadNoticeKey = null
         preferencesRepository.updatePlayerPreferences {
             it.copy(liveSubtitleEnabled = false)
         }
@@ -206,3 +213,47 @@ data class PlayerUiState(
 )
 
 sealed interface PlayerEvent
+
+internal data class LookaheadNoticeResult(
+    val notice: String?,
+    val noticeKey: String?,
+)
+
+internal fun resolveLookaheadNotice(
+    liveSubtitleActive: Boolean,
+    state: LookaheadSessionState,
+    lastNoticeKey: String?,
+): LookaheadNoticeResult {
+    if (!liveSubtitleActive) {
+        return LookaheadNoticeResult(
+            notice = null,
+            noticeKey = null,
+        )
+    }
+
+    val nextNoticeKey = when {
+        state.isFallbackActive -> "fallback:${state.generationId}"
+        state.status == LookaheadPipelineStatus.WARMING && state.generationId > 0L -> {
+            "warmup:${state.generationId}"
+        }
+        else -> lastNoticeKey
+    }
+
+    if (nextNoticeKey == null || nextNoticeKey == lastNoticeKey) {
+        return LookaheadNoticeResult(
+            notice = null,
+            noticeKey = nextNoticeKey,
+        )
+    }
+
+    val notice = when {
+        nextNoticeKey.startsWith("fallback:") -> "Lookahead unavailable, using live tap"
+        nextNoticeKey.startsWith("warmup:") -> "Preparing lookahead subtitle..."
+        else -> null
+    }
+
+    return LookaheadNoticeResult(
+        notice = notice,
+        noticeKey = nextNoticeKey,
+    )
+}

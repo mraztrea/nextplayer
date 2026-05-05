@@ -17,6 +17,7 @@ class SubtitleSessionManager @Inject constructor() {
         private const val STALE_TIMEOUT_MS = 10_000L
         private const val MAX_PENDING_ORIGINALS = 3
         private const val CARRYOVER_CONTEXT_LIMIT = 500
+        private const val MIN_TRANSLATED_DISPLAY_DURATION_MS = 2_500L
     }
 
     private val idCounter = AtomicLong(0)
@@ -101,9 +102,22 @@ class SubtitleSessionManager @Inject constructor() {
         }
 
         if (targetIndex >= 0) {
-            val updated = activeSegments[targetIndex].copy(
+            val currentSegment = activeSegments[targetIndex]
+            val minimumReadableEndMs =
+                currentSegment.targetStartMs + MIN_TRANSLATED_DISPLAY_DURATION_MS
+            val lateArrivalEndMs = if (currentPlaybackPositionMs > currentSegment.targetEndMs) {
+                currentPlaybackPositionMs + MIN_TRANSLATED_DISPLAY_DURATION_MS
+            } else {
+                currentSegment.targetEndMs
+            }
+            val updated = currentSegment.copy(
                 translationText = text,
                 status = SegmentStatus.TRANSLATED,
+                targetEndMs = maxOf(
+                    currentSegment.targetEndMs,
+                    minimumReadableEndMs,
+                    lateArrivalEndMs,
+                ),
             )
             activeSegments[targetIndex] = updated
 

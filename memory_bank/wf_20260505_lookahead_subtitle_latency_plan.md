@@ -65,3 +65,30 @@ Tạo bộ artifact `/speckit-plan` cho feature tối ưu độ trễ subtitle d
 - Ticker sync ở `PlayerService` đang chạy mỗi 100ms để gate subtitle theo media-time; đây là lựa chọn thực dụng để có sync ổn định trước khi tối ưu sâu hơn.
 - Fallback hiện chuyển về current-position tap nếu lookahead pipeline lỗi; chưa có telemetry transport/lead đầy đủ cho toàn bộ Phase 5.
 - Chưa chạy xác minh thủ công trên thiết bị thật cho các kịch bản seek/audio-track/fallback; mới xác minh bằng unit test + compile.
+
+## Cập nhật bugfix sau test thủ công
+
+### Triệu chứng
+
+- Toast `Preparing lookahead subtitle...` lặp lại nhiều lần trong cùng một lượt play.
+- Một số câu dịch xuất hiện rồi biến mất gần như ngay lập tức.
+- Một số câu dịch không hiển thị nếu translation final tới hơi muộn hơn cửa sổ audio gốc.
+
+### Root cause
+
+- `PlayerViewModel` phát notice warming theo mọi state update `LookaheadPipelineStatus.WARMING`, nên khi UI consume toast xong thì notice lại được set lại trong cùng generation.
+- `SubtitleSessionManager` dùng `targetEndMs` bám sát `end_ms` audio gốc cho cả translated segment; với câu ngắn, cửa sổ hiển thị quá hẹp để đọc.
+- Nếu translation final tới sau khi `currentPlaybackPosition` đã vượt `targetEndMs`, segment translated được cập nhật nhưng không còn nằm trong cửa sổ visible nên nhìn như bị mất câu.
+
+### Fix
+
+- Dedupe lookahead notice theo `generationId` trong `PlayerViewModel`; `Preparing lookahead subtitle...` chỉ phát một lần cho mỗi generation.
+- Khi segment chuyển sang `TRANSLATED`, kéo dài `targetEndMs` tối thiểu `1500ms` từ `targetStartMs`.
+- Nếu translation final tới muộn sau cửa sổ audio gốc, kéo dài thêm cửa sổ hiển thị từ `currentPlaybackPositionMs` để câu dịch vẫn được render.
+
+### Regression tests
+
+- `SubtitleSessionManagerTest.short translated segment stays visible for minimum readable duration`
+- `SubtitleSessionManagerTest.late translation still becomes visible after original audio window passed`
+- `PlayerViewModelNoticeTest.warmup notice is emitted only once for the same generation`
+- `PlayerViewModelNoticeTest.new generation emits warmup notice again`

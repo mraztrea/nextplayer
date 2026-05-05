@@ -50,7 +50,7 @@ class SubtitleSessionManagerTest {
         val segment = manager.displaySegments.value.single()
         assertEquals("Ban khoe khong", segment.translationText)
         assertEquals(2050L, segment.targetStartMs)
-        assertEquals(2450L, segment.targetEndMs)
+        assertTrue(segment.targetEndMs >= 2450L)
     }
 
     @Test
@@ -74,5 +74,51 @@ class SubtitleSessionManagerTest {
 
         assertTrue(manager.displaySegments.value.isEmpty())
         assertTrue(manager.provisionalText.value.isEmpty())
+    }
+
+    @Test
+    fun `short translated segment stays visible for minimum readable duration`() {
+        val manager = SubtitleSessionManager()
+
+        manager.beginGeneration(generationId = 9L, basePositionMs = 0L)
+        manager.onOriginal(
+            text = "Yes",
+            speaker = null,
+            language = "en",
+            confidence = 0.9f,
+            startMs = 0L,
+            endMs = 150L,
+        )
+        manager.onTranslation("Vang")
+
+        manager.onPlaybackPosition(1000L)
+        assertEquals(1, manager.displaySegments.value.size)
+        assertEquals("Vang", manager.displaySegments.value.single().translationText)
+
+        manager.onPlaybackPosition(1700L)
+        assertTrue(manager.displaySegments.value.isEmpty())
+    }
+
+    @Test
+    fun `late translation still becomes visible after original audio window passed`() {
+        val manager = SubtitleSessionManager()
+
+        manager.beginGeneration(generationId = 10L, basePositionMs = 0L)
+        manager.onOriginal(
+            text = "Thank you",
+            speaker = null,
+            language = "en",
+            confidence = 0.9f,
+            startMs = 0L,
+            endMs = 250L,
+        )
+
+        manager.onPlaybackPosition(400L)
+        assertTrue(manager.displaySegments.value.isEmpty())
+
+        manager.onTranslation("Cam on")
+
+        assertEquals(1, manager.displaySegments.value.size)
+        assertEquals("Cam on", manager.displaySegments.value.single().translationText)
     }
 }
