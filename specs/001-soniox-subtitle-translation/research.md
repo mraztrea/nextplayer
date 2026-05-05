@@ -2,23 +2,24 @@
 
 **Branch**: `001-soniox-subtitle-translation` | **Date**: 2026-05-05
 
-## R1: Trích xuất Audio từ Video trên Android (MediaExtractor/MediaCodec)
+## R1: Lấy Audio từ Player Pipeline trên Android (Media3/ExoPlayer)
 
 ### Quyết định
-Sử dụng `MediaExtractor` + `MediaCodec` để decode audio track trực tiếp từ file video, sau đó resample về 16 kHz mono PCM s16le.
+Tận dụng audio pipeline của Media3/ExoPlayer để lấy PCM đã decode từ đúng media item đang phát, ưu tiên custom `AudioProcessor` hoặc player audio tap bên trong `PlayerService`, sau đó chuẩn hóa về 16 kHz mono PCM s16le.
 
 ### Lý do
+- Không tạo thêm một pipeline decode song song với player hiện tại của nextplayer.
 - Không cần quyền `RECORD_AUDIO` hoặc `FOREGROUND_SERVICE_MEDIA_PROJECTION`.
 - Chỉ lấy đúng audio track của video, không lẫn âm thanh hệ thống/notification.
-- Hoạt động trên mọi Android từ API 16+ (minSdk hiện tại = 23).
-- nextplayer đã dùng Media3/ExoPlayer — có thể tận dụng ExoPlayer renderer hoặc `AudioProcessor` để tap vào audio pipeline.
+- Dễ đồng bộ hơn với seek, pause/resume, và audio track switch vì trạng thái phát nằm sẵn trong `PlayerService`.
+- nextplayer đã dùng Media3/ExoPlayer — có thể tận dụng renderer/audio sink hoặc `AudioProcessor` để tap vào audio pipeline.
 
 ### Phương án thay thế đã xem xét
 - **AudioPlaybackCapture**: Cần Android 10+ (API 29), cần quyền đặc biệt, bắt tất cả audio app. Loại bỏ.
-- **ExoPlayer AudioProcessor custom**: Có thể inject AudioProcessor vào ExoPlayer pipeline để tap raw PCM trước khi render. Đây là phương án tối ưu nhất vì ExoPlayer đã decode sẵn audio và có thể cung cấp PCM trực tiếp.
+- **MediaExtractor/MediaCodec decode song song**: Có thể decode trực tiếp từ file video, nhưng tạo thêm một luồng decode riêng, tăng rủi ro lệch với vị trí phát thực tế và làm phức tạp xử lý seek/track switch.
 
 ### Quyết định cuối cùng
-**Ưu tiên phương án ExoPlayer AudioProcessor** — inject một `TeeAudioProcessor` hoặc custom `AudioProcessor` vào ExoPlayer pipeline để nhận PCM đã decode mà không cần chạy `MediaExtractor` riêng. Nếu ExoPlayer API không cho phép tap dễ dàng, fallback sang `MediaExtractor` riêng biệt chạy song song.
+**Ưu tiên phương án Media3 player audio tap** — inject một `TeeAudioProcessor` hoặc custom `AudioProcessor` vào ExoPlayer pipeline trong `PlayerService` để nhận PCM đã decode mà không cần chạy một decoder riêng. Nếu `AudioProcessor` không đủ điểm hook do giới hạn renderer/audio sink, fallback sang tap ở tầng renderer; `MediaExtractor/MediaCodec` chỉ là phương án dự phòng cuối cùng, không phải baseline của spec.
 
 ## R2: WebSocket Client trên Android (Kotlin)
 

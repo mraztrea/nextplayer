@@ -58,46 +58,44 @@
 - [ ] T015 [US1] Implement interface `SubtitleEngine` và class `SubtitleEngineImpl` trong `core/subtitle/src/main/java/.../subtitle/engine/SubtitleEngine.kt` — orchestrate WebSocket + TokenParser + SessionManager + AudioBatcher, expose StateFlow<SubtitleEngineStatus>
 - [ ] T016 [US1] Tạo `SubtitleOverlay` Composable trong `feature/player/src/main/java/.../player/ui/SubtitleOverlay.kt` — render phụ đề trên video, hỗ trợ TRANSLATION_ONLY mode, provisional text kiểu italic/mờ, nền bán trong suốt
 - [ ] T017 [US1] Sửa `PlayerViewModel.kt` trong `feature/player/src/main/java/.../player/PlayerViewModel.kt` — inject SubtitleEngine, quản lý start/stop theo playback state, expose subtitle segments cho UI
-- [ ] T018 [US1] Sửa `PlayerActivity.kt` trong `feature/player/src/main/java/.../player/PlayerActivity.kt` — inject SubtitleAudioProcessor vào ExoPlayer audio pipeline, thêm toggle button bật/tắt live subtitle
-- [ ] T019 [US1] Tích hợp `SubtitleOverlay` vào `MediaPlayerScreen.kt` trong `feature/player/src/main/java/.../player/MediaPlayerScreen.kt` — hiển thị overlay khi live subtitle đang active
+- [ ] T018 [US1] Sửa `PlayerService.kt` trong `feature/player/src/main/java/.../player/service/PlayerService.kt` — inject `SubtitleAudioProcessor` vào ExoPlayer audio pipeline, đồng bộ playback state/position cho subtitle engine
+- [ ] T019 [US1] Tích hợp `SubtitleOverlay` và toggle `Live Subtitle` vào `MediaPlayerScreen.kt` trong `feature/player/src/main/java/.../player/MediaPlayerScreen.kt` — hiển thị overlay khi live subtitle đang active
 
 **Checkpoint**: US1 hoàn thành — có thể xem video với phụ đề dịch thời gian thực (mode TRANSLATION_ONLY)
 
 ---
 
-## Phase 4: User Story 2 — Cấu hình Ngôn ngữ và Chế độ Hiển thị (Priority: P1)
+## Phase 4: User Story 2 — Cấu hình Soniox API, Ngôn ngữ và Chế độ Hiển thị (Priority: P1)
 
-**Goal**: Người dùng cấu hình ngôn ngữ nguồn, ngôn ngữ đích, và chế độ hiển thị (đơn ngữ/song ngữ)
+**Goal**: Người dùng cấu hình Soniox API Key, ngôn ngữ nguồn/đích, và chế độ hiển thị trước khi bật live subtitle
 
-**Independent Test**: Vào Settings → Subtitle → đổi ngôn ngữ/chế độ hiển thị → khởi động phụ đề → cấu hình được áp dụng đúng
+**Independent Test**: Vào Settings → Subtitle → nhập API key, đổi ngôn ngữ/chế độ hiển thị → đóng/mở lại app → khởi động phụ đề → cấu hình được giữ và áp dụng đúng
 
 ### Implementation for User Story 2
 
 - [ ] T020 [P] [US2] Mở rộng `PlayerPreferences` trong `core/model/src/main/java/.../model/PlayerPreferences.kt` — thêm fields: sourceLanguage, targetLanguage, displayMode, endpointDelayMs, liveSubtitleEnabled
 - [ ] T021 [P] [US2] Mở rộng `PlayerPreferencesDataSource` trong `core/datastore/src/main/java/.../datastore/datasource/PlayerPreferencesDataSource.kt` — thêm read/write cho translation preferences mới
-- [ ] T022 [US2] Sửa `SubtitlePreferencesScreen.kt` trong `feature/settings/src/main/java/.../settings/screens/subtitle/SubtitlePreferencesScreen.kt` — thêm section "Translation": dropdown chọn source/target language, radio buttons chọn display mode
+- [ ] T022 [US2] Sửa `SubtitlePreferencesScreen.kt` trong `feature/settings/src/main/java/.../settings/screens/subtitle/SubtitlePreferencesScreen.kt` — thêm section "Translation": API key field, dropdown chọn source/target language, radio buttons chọn display mode
 - [ ] T023 [US2] Sửa `SubtitlePreferencesViewModel.kt` trong `feature/settings/src/main/java/.../settings/screens/subtitle/SubtitlePreferencesViewModel.kt` — expose và update translation preferences qua DataStore
-- [ ] T024 [US2] Cập nhật `SubtitleOverlay.kt` — hỗ trợ cả 3 chế độ hiển thị: ORIGINAL_ONLY (chỉ original), TRANSLATION_ONLY (chỉ dịch), BILINGUAL (cả hai dòng)
 - [ ] T025 [US2] Cập nhật `SubtitleEngineImpl` — đọc TranslationPreferences khi khởi tạo session, build SonioxSessionConfig từ preferences
+- [ ] T026 [P] [US2] Tạo `SecureApiKeyStorage` trong `core/subtitle/src/main/java/.../subtitle/storage/SecureApiKeyStorage.kt` — sử dụng EncryptedSharedPreferences để lưu/đọc/xóa API key
+- [ ] T027 [US2] Bổ sung logic UI/API cho API Key trong `SubtitlePreferencesScreen.kt` và `SubtitlePreferencesViewModel.kt` — toggle hiện/ẩn, validate action, trạng thái valid/invalid
+- [ ] T028 [US2] Implement API Key validation trong `SonioxWebSocketClient.kt` — thử kết nối nhanh, phân biệt lỗi invalid key / subscription / rate limit
+- [ ] T029 [US2] Cập nhật `SubtitleEngineImpl` — kiểm tra API key validity trước khi start session (FR-016), hiển thị lỗi rõ ràng nếu key thiếu/invalid
 
-**Checkpoint**: US2 hoàn thành — người dùng cấu hình ngôn ngữ và chế độ hiển thị, phụ đề hiển thị đúng
+**Checkpoint**: US2 hoàn thành — người dùng cấu hình và lưu được API key/ngôn ngữ/chế độ hiển thị, phiên subtitle khởi động với cấu hình hợp lệ
 
----
+## Phase 5: User Story 3 — Hiển thị Phụ đề Song ngữ (Priority: P2)
 
-## Phase 5: User Story 3 — Quản lý API Key An toàn (Priority: P1)
+**Goal**: Người dùng học ngôn ngữ có thể xem đồng thời câu gốc và câu dịch, với placeholder rõ ràng khi bản dịch chưa đến
 
-**Goal**: Người dùng nhập và lưu Soniox API Key an toàn, key được xác thực trước khi bắt đầu phiên
-
-**Independent Test**: Vào Settings → nhập API key → lưu → khởi động lại app → key vẫn còn → bắt đầu subtitle → key được validate
+**Independent Test**: Chọn mode song ngữ → phát video có lời thoại → cột/vùng gốc và dịch hiển thị đồng thời; khi câu gốc đã final nhưng câu dịch chưa tới thì hiển thị `...`
 
 ### Implementation for User Story 3
 
-- [ ] T026 [P] [US3] Tạo `SecureApiKeyStorage` trong `core/subtitle/src/main/java/.../subtitle/storage/SecureApiKeyStorage.kt` — sử dụng EncryptedSharedPreferences để lưu/đọc/xóa API key
-- [ ] T027 [US3] Thêm UI nhập API Key vào `SubtitlePreferencesScreen.kt` — text field với toggle hiện/ẩn, nút validate, trạng thái valid/invalid
-- [ ] T028 [US3] Implement API Key validation trong `SonioxWebSocketClient.kt` — thử kết nối test nhanh, trả về success/failure
-- [ ] T029 [US3] Cập nhật `SubtitleEngineImpl` — kiểm tra API key validity trước khi start session (FR-016), hiển thị lỗi rõ ràng nếu key thiếu/invalid
+- [ ] T024 [US3] Cập nhật `SubtitleOverlay.kt` — hỗ trợ cả 3 chế độ hiển thị: ORIGINAL_ONLY, TRANSLATION_ONLY, BILINGUAL; trong BILINGUAL hiển thị placeholder `...` khi original đã final nhưng translation chưa đến
 
-**Checkpoint**: US3 hoàn thành — API key được lưu an toàn và xác thực trước khi sử dụng
+**Checkpoint**: US3 hoàn thành — overlay song ngữ hiển thị đúng original, translation, và trạng thái đang chờ dịch
 
 ---
 
@@ -137,9 +135,9 @@
 
 **Purpose**: Xử lý edge cases, seek/pause behavior, và hoàn thiện
 
-- [ ] T036 [P] Xử lý seek: Khi người dùng tua video → xóa subtitle buffer + reset Soniox session + đồng bộ AudioProcessor tới vị trí mới — sửa `PlayerViewModel.kt` và `SubtitleEngineImpl`
-- [ ] T037 [P] Xử lý pause/resume: Khi video tạm dừng → tạm dừng gửi audio, keepalive duy trì kết nối — sửa `SubtitleAudioProcessor.kt` và `SonioxWebSocketClient.kt`
-- [ ] T038 [P] Xử lý audio track switch: Phát hiện thay đổi audio track → reset subtitle session — sửa `PlayerActivity.kt`
+- [ ] T036 [P] Xử lý seek: Khi người dùng tua video → xóa subtitle buffer + reset Soniox session + đồng bộ audio tap tới vị trí mới — sửa `PlayerService.kt`, `PlayerViewModel.kt`, và `SubtitleEngineImpl`
+- [ ] T037 [P] Xử lý pause/resume: Khi video tạm dừng → tạm dừng gửi audio, keepalive duy trì kết nối — sửa `PlayerService.kt`, `SubtitleAudioProcessor.kt`, và `SonioxWebSocketClient.kt`
+- [ ] T038 [P] Xử lý audio track switch: Phát hiện thay đổi audio track → reset subtitle session — sửa `PlayerService.kt`
 - [ ] T039 [P] Xử lý lỗi kết nối: Thông báo user-friendly khi mất mạng, auto-reconnect khi có mạng — sửa `SubtitleOverlay.kt` (hiển thị trạng thái)
 - [ ] T040 Thêm permission `INTERNET` (nếu chưa có) vào `app/src/main/AndroidManifest.xml`
 - [ ] T041 Cập nhật ProGuard rules cho OkHttp trong `app/proguard-rules.pro`
@@ -153,8 +151,8 @@
 - **Setup (Phase 1)**: Không phụ thuộc — bắt đầu ngay
 - **Foundational (Phase 2)**: Phụ thuộc Phase 1 — BLOCKS tất cả user stories
 - **US1 (Phase 3)**: Phụ thuộc Phase 2 — core pipeline, MVP
-- **US2 (Phase 4)**: Phụ thuộc Phase 2 + US1 (mở rộng SubtitleOverlay từ US1)
-- **US3 (Phase 5)**: Phụ thuộc Phase 2 — có thể chạy song song với US1 về mặt logic, nhưng nên sau US1 vì cần WebSocketClient
+- **US2 (Phase 4)**: Phụ thuộc Phase 2 — có thể triển khai song song với US1, nhưng validation end-to-end cần engine từ US1
+- **US3 (Phase 5)**: Phụ thuộc US1 + US2 (cần overlay cơ bản từ US1 và display mode từ US2)
 - **US4 (Phase 6)**: Phụ thuộc US1 (mở rộng overlay + session manager)
 - **US5 (Phase 7)**: Phụ thuộc US1 (mở rộng WebSocket + session manager)
 - **Polish (Phase 8)**: Phụ thuộc US1 hoàn thành
@@ -171,8 +169,7 @@
 - Phase 2: T004–T008 đều chạy song song ([P])
 - US1: T010 + T011 song song (WebSocket + TokenParser không phụ thuộc nhau)
 - US1: T013 + T014 song song (AudioBatcher + AudioProcessor)
-- US2: T020 + T021 song song (Model + DataSource)
-- US3: T026 song song với T027
+- Phase 4: T020 + T021 + T026 song song (model + datastore + secure storage)
 
 ---
 
@@ -196,8 +193,8 @@ T015: SubtitleEngineImpl.kt
 # UI (cần Engine):
 T016: SubtitleOverlay.kt
 T017: PlayerViewModel.kt (inject Engine)
-T018: PlayerActivity.kt (inject AudioProcessor)
-T019: MediaPlayerScreen.kt (integrate Overlay)
+T018: PlayerService.kt (inject AudioProcessor)
+T019: MediaPlayerScreen.kt (integrate Overlay + toggle)
 ```
 
 ---
@@ -216,8 +213,8 @@ T019: MediaPlayerScreen.kt (integrate Overlay)
 
 1. Setup + Foundational → Nền tảng sẵn sàng
 2. US1 → Test → **MVP sẵn sàng** (phụ đề dịch hoạt động)
-3. US2 → Test → Cấu hình ngôn ngữ + chế độ hiển thị
-4. US3 → Test → API key an toàn + validation
+3. US2 → Test → API key + ngôn ngữ + chế độ hiển thị
+4. US3 → Test → Overlay song ngữ
 5. US4 → Test → Provisional text
 6. US5 → Test → Phiên ổn định 2+ tiếng
 7. Polish → Edge cases + seek/pause/error handling

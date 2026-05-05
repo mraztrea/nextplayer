@@ -25,9 +25,14 @@ wss://stt-rt.soniox.com/transcribe-websocket
     "type": "one_way",
     "target_language": "vi"
   },
-  "language_hints": ["en"]
+  "language_hints": ["en"],
+  "context": {
+    "text": "Recent conversation: ..."
+  }
 }
 ```
+
+- `context` là optional. Trong v1 có thể chỉ dùng `context.text` để mang theo carryover context giới hạn khi reset session.
 
 ## Audio Data: Binary Frame
 
@@ -74,6 +79,7 @@ wss://stt-rt.soniox.com/transcribe-websocket
 
 ## Error Handling
 
-- WebSocket close code `4001`: Invalid API Key
-- WebSocket close code `4002`: Rate limited
+- WebSocket close code `4001` hoặc `4003`: Invalid API Key
+- WebSocket close code `4002`: Subscription issue / account problem
+- WebSocket close code `4029`: Rate limited
 - Network timeout: Reconnect with exponential backoff (1s, 2s, 4s, max 30s)

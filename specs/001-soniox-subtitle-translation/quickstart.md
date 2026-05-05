@@ -32,8 +32,8 @@ include(":core:subtitle")
 
 ### 3. Build & Run
 
-```bash
-./gradlew :app:assembleDebug
+```powershell
+.\gradlew.bat :app:assembleDebug
 ```
 
 ### 4. Cấu hình trong app
@@ -69,6 +69,8 @@ core:subtitle/
 │   ├── audio/
 │   │   ├── SubtitleAudioProcessor.kt  # ExoPlayer AudioProcessor tap
 │   │   └── AudioBatcher.kt            # 200ms batching
+│   ├── storage/
+│   │   └── SecureApiKeyStorage.kt     # EncryptedSharedPreferences wrapper
 │   └── di/
 │       └── SubtitleModule.kt          # Hilt DI module
 ```

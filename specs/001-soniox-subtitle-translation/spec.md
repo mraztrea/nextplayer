@@ -9,7 +9,7 @@
 
 ### Phiên 2026-05-05
 
-- Q: Phương pháp trích xuất audio từ video? → A: MediaExtractor/MediaCodec — decode audio trực tiếp từ file video, không dùng AudioPlaybackCapture.
+- Q: Phương pháp lấy audio cho Soniox từ video đang phát? → A: Tận dụng audio pipeline của Media3/ExoPlayer, ưu tiên custom `AudioProcessor` hoặc renderer tap để lấy PCM đã decode từ đúng media item đang phát; không dùng AudioPlaybackCapture.
 
 ## Kịch bản Người dùng & Kiểm thử *(bắt buộc)*
 
@@ -115,14 +115,14 @@ Người dùng xem phim 2 tiếng với phụ đề trực tiếp được bật
 - **FR-001**: Hệ thống PHẢI cung cấp giao diện cài đặt để người dùng nhập và lưu trữ Soniox API Key một cách an toàn.
 - **FR-002**: Hệ thống PHẢI cho phép người dùng chọn ngôn ngữ nguồn và ngôn ngữ đích (mặc định là tiếng Việt) để dịch.
 - **FR-003**: Hệ thống PHẢI hỗ trợ ba chế độ hiển thị: "Chỉ bản gốc", "Chỉ bản dịch" (mặc định), và "Song ngữ".
-- **FR-004**: Hệ thống PHẢI trích xuất luồng audio trực tiếp từ file video bằng cách decode (MediaExtractor/MediaCodec) và chuẩn hóa về định dạng 16 kHz mono PCM (s16le). Không sử dụng AudioPlaybackCapture.
+- **FR-004**: Hệ thống PHẢI lấy luồng audio từ phiên phát hiện tại của Media3/ExoPlayer bằng cách tap PCM đã decode trong audio pipeline của player, sau đó chuẩn hóa về định dạng 16 kHz mono PCM (s16le). Không sử dụng AudioPlaybackCapture và không lấy audio ngoài media item đang phát.
 - **FR-005**: Hệ thống PHẢI gửi dữ liệu audio theo batch (khoảng 200ms mỗi batch) tới Soniox qua kết nối WebSocket.
 - **FR-006**: Hệ thống PHẢI phân tích luồng token Soniox sử dụng cờ `is_final` và `translation_status` để phân loại chính xác token thành bản gốc, bản dịch, hoặc tạm thời.
 - **FR-007**: Hệ thống PHẢI hiển thị văn bản tạm thời (đang xử lý) với kiểu hiển thị khác biệt để cho biết lời nói đang được nhận dạng.
 - **FR-008**: Hệ thống PHẢI sử dụng hàng đợi FIFO để ghép cặp văn bản gốc đã chốt với văn bản dịch tương ứng.
 - **FR-009**: Hệ thống PHẢI render overlay phụ đề đè lên trình phát video, hỗ trợ cả bố cục hiển thị đơn ngữ và song ngữ.
 - **FR-010**: Hệ thống PHẢI duy trì kết nối WebSocket bằng tin nhắn keepalive (mỗi 15 giây) trong các khoảng im lặng.
-- **FR-011**: Hệ thống PHẢI triển khai cơ chế reset phiên để duy trì kết nối ổn định trong thời gian dài, đảm bảo không có gián đoạn mà người dùng nhận thấy.
+- **FR-011**: Hệ thống PHẢI triển khai cơ chế reset phiên make-before-break để duy trì kết nối ổn định trong thời gian dài, đảm bảo không có gián đoạn mà người dùng nhận thấy và mang theo một lượng ngữ cảnh hội thoại gần nhất có giới hạn để giảm đứt mạch bản dịch sau reset.
 - **FR-012**: Hệ thống PHẢI dọn dẹp các đoạn gốc tồn đọng (cũ hơn 10 giây hoặc vượt quá 3 đoạn đang chờ) để ngăn lệch hiển thị.
 - **FR-013**: Hệ thống PHẢI tách biệt bộ đệm hiển thị (có thể cắt bỏ để tối ưu UI) khỏi nhật ký phiên đầy đủ (để đảm bảo tính toàn vẹn).
 - **FR-014**: Hệ thống PHẢI xóa trạng thái phụ đề và reset phiên nhận dạng khi người dùng tua đến vị trí khác trong video.
@@ -132,8 +132,8 @@ Người dùng xem phim 2 tiếng với phụ đề trực tiếp được bật
 ### Thực thể Chính
 
 - **SubtitleSegment (Đoạn phụ đề)**: Đại diện cho một đơn vị hiển thị phụ đề. Chứa văn bản gốc, văn bản dịch, trạng thái (gốc/đã dịch), nhãn người nói, mã ngôn ngữ, điểm tin cậy, và thời gian tạo.
-- **SubtitleSession (Phiên phụ đề)**: Đại diện cho một phiên dịch phụ đề đang hoạt động. Theo dõi trạng thái kết nối, bộ đệm hiển thị (có thể cắt bỏ), nhật ký phiên đầy đủ, và cấu hình (ngôn ngữ, chế độ hiển thị, API key).
-- **TranslationSettings (Cài đặt Dịch)**: Tùy chọn cấu hình của người dùng bao gồm API Key, ngôn ngữ nguồn, ngôn ngữ đích, chế độ hiển thị, và endpoint delay.
+- **SubtitleSession (Phiên phụ đề)**: Đại diện cho một phiên dịch phụ đề đang hoạt động. Theo dõi trạng thái kết nối, bộ đệm hiển thị (có thể cắt bỏ), nhật ký phiên đầy đủ, văn bản provisional hiện tại, và ngữ cảnh bản dịch gần nhất dùng cho session reset.
+- **TranslationSettings (Cài đặt Dịch)**: Tùy chọn cấu hình của người dùng bao gồm tham chiếu tới API Key được lưu an toàn, ngôn ngữ nguồn, ngôn ngữ đích, chế độ hiển thị, và endpoint delay.
 
 ## Tiêu chí Thành công *(bắt buộc)*
 
@@ -157,4 +157,4 @@ Người dùng xem phim 2 tiếng với phụ đề trực tiếp được bật
 - Tính năng phân biệt người nói (speaker diarization) và nhận dạng ngôn ngữ từ Soniox được sử dụng thụ động (hiển thị nếu có sẵn) nhưng không phải là cốt lõi cho logic ghép cặp phụ đề.
 - TTS (đọc bản dịch thành tiếng nói) nằm ngoài phạm vi v1.
 - Lưu trữ transcript (lưu nhật ký phiên ra file) nằm ngoài phạm vi v1 nhưng cấu trúc dữ liệu nhật ký phiên cần hỗ trợ triển khai trong tương lai.
-- Audio được trích xuất bằng cách decode trực tiếp từ file video (MediaExtractor/MediaCodec), không phụ thuộc vào AudioPlaybackCapture API. Cần đồng bộ vị trí decode với vị trí phát hiện tại của trình phát video.
+- Audio được lấy từ audio pipeline của Media3/ExoPlayer cho đúng media item đang phát, không phụ thuộc vào AudioPlaybackCapture API và không chạy một audio capture riêng ở mức hệ thống.

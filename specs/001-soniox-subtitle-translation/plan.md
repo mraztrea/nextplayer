@@ -5,7 +5,7 @@
 
 ## Summary
 
-Tích hợp tính năng phụ đề dịch thời gian thực vào nextplayer bằng Soniox AI. Pipeline: trích xuất audio từ video qua ExoPlayer AudioProcessor → chuẩn hóa 16kHz mono PCM → gửi batch 200ms qua WebSocket tới Soniox → parse token stream → ghép cặp FIFO original/translation → render overlay phụ đề trên video player.
+Tích hợp tính năng phụ đề dịch thời gian thực vào nextplayer bằng Soniox AI. Pipeline: tap audio từ Media3/ExoPlayer trong `PlayerService` → chuẩn hóa 16kHz mono PCM → gửi batch 200ms qua WebSocket tới Soniox → parse token stream → ghép cặp FIFO original/translation → render overlay phụ đề trên video player.
 
 ## Technical Context
 
@@ -16,7 +16,7 @@ Tích hợp tính năng phụ đề dịch thời gian thực vào nextplayer b�
 **Target Platform**: Android, minSdk 23, targetSdk 36  
 **Project Type**: Mobile app (Android video player)  
 **Performance Goals**: Phụ đề xuất hiện <3s sau lời nói, provisional <500ms, phiên ổn định 2+ tiếng  
-**Constraints**: Không dùng AudioPlaybackCapture, decode audio trực tiếp từ file video  
+**Constraints**: Không dùng AudioPlaybackCapture, chỉ lấy audio từ media item đang phát trong player pipeline  
 **Scale/Scope**: Single user, local device, 1 WebSocket connection
 
 ## Constitution Check
@@ -63,6 +63,8 @@ core/
 │       ├── audio/
 │       │   ├── SubtitleAudioProcessor.kt # ExoPlayer AudioProcessor tap
 │       │   └── AudioBatcher.kt           # 200ms PCM batching + resample
+│       ├── storage/
+│       │   └── SecureApiKeyStorage.kt    # EncryptedSharedPreferences wrapper
 │       └── di/
 │           └── SubtitleModule.kt         # Hilt DI bindings
 
@@ -76,8 +78,10 @@ core/model/
 
 feature/player/
 └── ...player/
-    ├── PlayerActivity.kt                 # ★ MODIFY: inject AudioProcessor, toggle subtitle
     ├── PlayerViewModel.kt                # ★ MODIFY: quản lý subtitle engine state
+    ├── MediaPlayerScreen.kt              # ★ MODIFY: integrate overlay + live subtitle toggle
+    ├── service/
+    │   └── PlayerService.kt              # ★ MODIFY: inject player audio tap vào ExoPlayer builder
     └── ui/
         └── SubtitleOverlay.kt            # ★ NEW: Compose overlay component
 

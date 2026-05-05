@@ -41,18 +41,32 @@ Cấu hình gửi lên Soniox khi mở WebSocket.
 | `targetLanguage` | `String` | Mã ngôn ngữ đích (mặc định `"vi"`) |
 | `endpointDelayMs` | `Int` | Mặc định `3000` |
 
+### SubtitleSession
+
+Trạng thái runtime của một phiên subtitle đang hoạt động.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | `SubtitleEngineStatus` | Trạng thái engine hiện tại |
+| `displaySegments` | `List<SubtitleSegment>` | Buffer hiển thị cho UI, có thể trim |
+| `sessionLog` | `List<SubtitleSegment>` | Nhật ký đầy đủ của phiên, không trim |
+| `provisionalText` | `String` | Văn bản provisional hiện tại |
+| `recentTranslations` | `List<String>` | Rolling history giới hạn dùng để build carryover context khi reset session |
+| `startedAt` | `Long` | Timestamp bắt đầu phiên |
+| `lastResetAt` | `Long` | Timestamp reset mềm gần nhất |
+
 ### TranslationPreferences
 
-Mở rộng preferences hiện có của nextplayer. Persist qua DataStore.
+Mở rộng preferences hiện có của nextplayer. Persist qua DataStore. Soniox API Key được lưu riêng trong `SecureApiKeyStorage`, không nằm trong `TranslationPreferences`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `sonioxApiKey` | `String` | `""` | API Key (encrypt riêng qua EncryptedSharedPreferences) |
 | `sourceLanguage` | `String` | `"auto"` | Ngôn ngữ nguồn |
 | `targetLanguage` | `String` | `"vi"` | Ngôn ngữ đích |
 | `displayMode` | `SubtitleDisplayMode` | `TRANSLATION_ONLY` | Chế độ hiển thị |
 | `endpointDelayMs` | `Int` | `3000` | Endpoint delay cho Soniox |
 | `liveSubtitleEnabled` | `Boolean` | `false` | Bật/tắt tính năng |
+| `hasApiKeyConfigured` | `Boolean` | `false` | Cờ UI cho biết đã có API key hợp lệ trong secure storage |
 
 ## Enums
 
@@ -77,8 +91,8 @@ enum class SubtitleDisplayMode {
 
 ```
 TranslationPreferences ──1:1──> SonioxSessionConfig (derived at runtime)
-SonioxSession ──1:N──> SubtitleSegment (display buffer, trimmable)
-SonioxSession ──1:N──> SubtitleSegment (session log, non-trimmable)
+SubtitleSession ──1:N──> SubtitleSegment (display buffer, trimmable)
+SubtitleSession ──1:N──> SubtitleSegment (session log, non-trimmable)
 ```
 
 ## Data Flow
@@ -91,7 +105,7 @@ SonioxWebSocketClient
 SonioxTokenParser
     ↓ onOriginal / onTranslation / onProvisional callbacks
 SubtitleSessionManager
-    ↓ segments[] (display) + sessionLog[] (full)
+    ↓ displaySegments[] + sessionLog[] + recentTranslations[]
 SubtitleOverlay (Compose)
     ↓ rendered text on video
 ```
