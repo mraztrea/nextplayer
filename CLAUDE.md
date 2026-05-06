@@ -157,7 +157,7 @@ Khi hoàn thành task phức tạp hoặc phát hiện pattern/convention quan t
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **recland-v4** (15910 symbols, 27827 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **nextplayer** (6042 symbols, 13971 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -180,10 +180,10 @@ This project is indexed by GitNexus as **recland-v4** (15910 symbols, 27827 rela
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/recland-v4/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/recland-v4/clusters` | All functional areas |
-| `gitnexus://repo/recland-v4/processes` | All execution flows |
-| `gitnexus://repo/recland-v4/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/nextplayer/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/nextplayer/clusters` | All functional areas |
+| `gitnexus://repo/nextplayer/processes` | All execution flows |
+| `gitnexus://repo/nextplayer/process/{name}` | Step-by-step execution trace |
 
 ## CLI
 

@@ -55,3 +55,6 @@ fastlane/test_output
 vendor/
 .bundle/
 .kotlin
+.gitnexus
+/core/model/bin
+/.tmp_media3

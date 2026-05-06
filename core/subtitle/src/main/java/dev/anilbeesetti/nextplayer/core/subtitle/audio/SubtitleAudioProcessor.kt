@@ -68,9 +68,20 @@ class SubtitleAudioProcessor @Inject constructor(
             )
         }
 
-        // Pass-through: tạo view độc lập của dữ liệu input để trả về từ getOutput()
-        // Sau đó đánh dấu inputBuffer đã được tiêu thụ hoàn toàn (theo contract của Media3 AudioProcessor)
-        outputBuffer = inputBuffer.duplicate()
+        // Pass-through: copy sang buffer riêng vì caller vẫn giữ ownership của inputBuffer.
+        // Nếu giữ alias/view của inputBuffer thì upstream có thể tái sử dụng/mutate buffer,
+        // gây audio output bị rác hoặc rè.
+        val outputSize = inputBuffer.remaining()
+        val output = if (outputBuffer.capacity() < outputSize) {
+            ByteBuffer.allocateDirect(outputSize).order(ByteOrder.nativeOrder())
+        } else {
+            outputBuffer.clear()
+            outputBuffer.limit(outputSize)
+            outputBuffer
+        }
+        output.put(inputBuffer.duplicate())
+        output.flip()
+        outputBuffer = output
         inputBuffer.position(inputBuffer.limit())
     }
 
