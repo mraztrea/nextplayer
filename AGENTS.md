@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan at
-specs/003-lan-playback-optimization/plan.md
+specs/004-player-performance-optimize/plan.md
 <!-- SPECKIT END -->
 
 ## 🚨 CRITICAL RULE: Reference Code 🚨
