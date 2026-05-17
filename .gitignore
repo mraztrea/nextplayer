@@ -58,3 +58,4 @@ vendor/
 .gitnexus
 /core/model/bin
 /.tmp_media3
+.vscode/settings.json

@@ -31,3 +31,14 @@
 
 - Không có migrate database.
 - Không cần thay đổi schema Room hay DataStore.
+
+## Bổ sung CxFileExplorer
+
+- `code_reference/video_player_module` cho thấy player reference không tự quét LAN mù trong activity; nó nhận sẵn queue từ opener rồi mới dựng Next/Prev.
+- Để tương thích explorer ngoài, `PlayerApi` nay đọc thêm queue từ `Intent.EXTRA_STREAM` và `ClipData` nếu caller có gửi.
+- Nếu caller chỉ gửi 1 `content://` URI, `ResolvePlaybackQueueUseCase` sẽ thử liệt kê sibling qua `DocumentsProvider` của cùng thư mục để dựng Next/Prev cho LAN.
+- Đã verify compile thêm bằng:
+
+```powershell
+.\gradlew :core:domain:compileDebugKotlin :feature:player:compileDebugKotlin :app:compileDebugKotlin
+```

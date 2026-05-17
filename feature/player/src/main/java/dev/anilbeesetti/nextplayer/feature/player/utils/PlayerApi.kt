@@ -1,6 +1,7 @@
 package dev.anilbeesetti.nextplayer.feature.player.utils
 
 import android.content.Intent
+import android.os.Build
 import android.net.Uri
 import androidx.media3.common.C
 import dev.anilbeesetti.nextplayer.core.model.PlaybackLaunchContext
@@ -42,10 +43,35 @@ class PlayerApi(val activity: PlayerActivity) {
     }
 
     fun getPlaylist(): List<String> {
-        val extras = extras ?: return emptyList()
-        if (!extras.containsKey(API_PLAYLIST)) return emptyList()
-        val playlist = extras.getParcelableUriArray(API_PLAYLIST) ?: return emptyList()
-        return playlist.map { (it as Uri).toString() }
+        val extras = extras
+        val apiPlaylist = extras?.takeIf { it.containsKey(API_PLAYLIST) }
+            ?.getParcelableUriArray(API_PLAYLIST)
+            ?.map { (it as Uri).toString() }
+            .orEmpty()
+        if (apiPlaylist.isNotEmpty()) return apiPlaylist
+
+        val extraStreamList = extras?.takeIf { it.containsKey(Intent.EXTRA_STREAM) }
+            ?.getParcelableUriArray(Intent.EXTRA_STREAM)
+            ?.map { (it as Uri).toString() }
+            .orEmpty()
+        if (extraStreamList.isNotEmpty()) return extraStreamList
+
+        val singleStream = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            activity.intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            activity.intent.getParcelableExtra(Intent.EXTRA_STREAM)
+        }?.toString()
+        if (!singleStream.isNullOrBlank()) {
+            return listOf(singleStream)
+        }
+
+        val clipData = activity.intent.clipData ?: return emptyList()
+        return buildList {
+            for (index in 0 until clipData.itemCount) {
+                clipData.getItemAt(index).uri?.toString()?.let(::add)
+            }
+        }
     }
 
     fun getPlaybackLaunchContext(currentUriString: String): PlaybackLaunchContext? {

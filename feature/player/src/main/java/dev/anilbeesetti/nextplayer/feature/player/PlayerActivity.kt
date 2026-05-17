@@ -150,6 +150,7 @@ class PlayerActivity : ComponentActivity() {
                 viewModel.queueHydrationState.collect { state ->
                     if (state.status != QueueHydrationStatus.READY) return@collect
                     val snapshot = state.snapshot ?: return@collect
+                    cacheHydratedPlaybackContext(snapshot)
                     applyHydratedQueue(snapshot)
                 }
             }
@@ -270,6 +271,17 @@ class PlayerActivity : ComponentActivity() {
             .setUri(uriString)
             .setMediaId(uriString)
             .build()
+    }
+
+    private fun cacheHydratedPlaybackContext(snapshot: PlaybackQueueSnapshot) {
+        if (snapshot.uriStrings.size <= 1) return
+        if (playerApi.getPlaybackLaunchContext(snapshot.currentUriString) != null) return
+
+        intent.putStringArrayListExtra(
+            PlayerApi.API_PLAYBACK_CONTEXT_URIS,
+            ArrayList(snapshot.uriStrings),
+        )
+        intent.putExtra(PlayerApi.API_PLAYBACK_SOURCE_TYPE, snapshot.sourceType.name)
     }
 
     private fun applyHydratedQueue(snapshot: PlaybackQueueSnapshot) {
