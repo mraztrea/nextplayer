@@ -75,8 +75,9 @@ class PlayerApi(val activity: PlayerActivity) {
     }
 
     fun getPlaybackLaunchContext(currentUriString: String): PlaybackLaunchContext? {
-        val playlist = getPlaylist().normalizedUriStrings(currentUriString)
-        if (playlist.isNotEmpty()) {
+        val rawPlaylist = getPlaylist()
+        if (rawPlaylist.isNotEmpty()) {
+            val playlist = rawPlaylist.normalizedUriStrings(currentUriString)
             return PlaybackLaunchContext(
                 currentUriString = currentUriString,
                 siblings = playlist.map(::SiblingVideoEntry),
@@ -89,10 +90,10 @@ class PlayerApi(val activity: PlayerActivity) {
         val sourceType = extras.getString(API_PLAYBACK_SOURCE_TYPE)
             ?.let { source -> runCatching { PlaybackSourceType.valueOf(source) }.getOrNull() }
             ?: return null
-        val siblingUris = extras.getStringArrayList(API_PLAYBACK_CONTEXT_URIS)
+        val rawSiblingUris = extras.getStringArrayList(API_PLAYBACK_CONTEXT_URIS)
             .orEmpty()
-            .normalizedUriStrings(currentUriString)
-        if (siblingUris.isEmpty()) return null
+        if (rawSiblingUris.isEmpty()) return null
+        val siblingUris = rawSiblingUris.normalizedUriStrings(currentUriString)
 
         return PlaybackLaunchContext(
             currentUriString = currentUriString,
