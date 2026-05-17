@@ -3,13 +3,16 @@ package dev.anilbeesetti.nextplayer.feature.player.utils
 import android.content.Intent
 import android.net.Uri
 import androidx.media3.common.C
+import dev.anilbeesetti.nextplayer.core.model.PlaybackLaunchContext
+import dev.anilbeesetti.nextplayer.core.model.PlaybackSourceType
+import dev.anilbeesetti.nextplayer.core.model.SiblingVideoEntry
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.extensions.getParcelableUriArray
 import dev.anilbeesetti.nextplayer.feature.player.model.Subtitle
 
 class PlayerApi(val activity: PlayerActivity) {
 
-    private val extras = activity.intent.extras
+    private val extras get() = activity.intent.extras
     val isApiAccess: Boolean get() = extras != null
     val hasPosition: Boolean get() = extras?.containsKey(API_POSITION) == true
     val hasTitle: Boolean get() = extras?.containsKey(API_TITLE) == true
@@ -18,7 +21,7 @@ class PlayerApi(val activity: PlayerActivity) {
     val title: String? get() = if (hasTitle) extras?.getString(API_TITLE) else null
 
     fun getSubs(): List<Subtitle> {
-        if (extras == null) return emptyList()
+        val extras = extras ?: return emptyList()
         if (!extras.containsKey(API_SUBS)) return emptyList()
 
         val subs = extras.getParcelableUriArray(API_SUBS) ?: return emptyList()
@@ -39,10 +42,37 @@ class PlayerApi(val activity: PlayerActivity) {
     }
 
     fun getPlaylist(): List<String> {
-        if (extras == null) return emptyList()
+        val extras = extras ?: return emptyList()
         if (!extras.containsKey(API_PLAYLIST)) return emptyList()
         val playlist = extras.getParcelableUriArray(API_PLAYLIST) ?: return emptyList()
         return playlist.map { (it as Uri).toString() }
+    }
+
+    fun getPlaybackLaunchContext(currentUriString: String): PlaybackLaunchContext? {
+        val playlist = getPlaylist().normalizedUriStrings(currentUriString)
+        if (playlist.isNotEmpty()) {
+            return PlaybackLaunchContext(
+                currentUriString = currentUriString,
+                siblings = playlist.map(::SiblingVideoEntry),
+                sourceType = PlaybackSourceType.API_PLAYLIST,
+            )
+        }
+
+        val extras = extras ?: return null
+
+        val sourceType = extras.getString(API_PLAYBACK_SOURCE_TYPE)
+            ?.let { source -> runCatching { PlaybackSourceType.valueOf(source) }.getOrNull() }
+            ?: return null
+        val siblingUris = extras.getStringArrayList(API_PLAYBACK_CONTEXT_URIS)
+            .orEmpty()
+            .normalizedUriStrings(currentUriString)
+        if (siblingUris.isEmpty()) return null
+
+        return PlaybackLaunchContext(
+            currentUriString = currentUriString,
+            siblings = siblingUris.map(::SiblingVideoEntry),
+            sourceType = sourceType,
+        )
     }
 
     fun getResult(isPlaybackFinished: Boolean, duration: Long, position: Long): Intent {
@@ -67,10 +97,21 @@ class PlayerApi(val activity: PlayerActivity) {
         const val API_SUBS_ENABLE = "subs.enable"
         const val API_SUBS_NAME = "subs.name"
         const val API_PLAYLIST = "video_list"
+        const val API_PLAYBACK_CONTEXT_URIS = "playback_context_uris"
+        const val API_PLAYBACK_SOURCE_TYPE = "playback_source_type"
 
         const val API_RESULT_INTENT = "com.mxtech.intent.result.VIEW"
 
         private const val API_END_BY_USER = "user"
         private const val API_END_BY_COMPLETION = "playback_completion"
     }
+}
+
+private fun List<String>.normalizedUriStrings(currentUriString: String): List<String> {
+    return buildList {
+        add(currentUriString)
+        addAll(this@normalizedUriStrings)
+    }.map(String::trim)
+        .filter(String::isNotEmpty)
+        .distinct()
 }

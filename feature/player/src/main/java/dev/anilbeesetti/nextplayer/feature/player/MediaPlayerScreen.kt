@@ -103,6 +103,8 @@ fun MediaPlayerScreen(
     onSelectSubtitleClick: () -> Unit,
     onBackClick: () -> Unit,
     onPlayInBackgroundClick: () -> Unit,
+    onNextUnavailableClick: () -> Unit = {},
+    onPreviousUnavailableClick: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val subtitleDisplayMode = SubtitleDisplayMode.fromPreference(playerPreferences.displayMode)
@@ -328,7 +330,11 @@ fun MediaPlayerScreen(
                                 seekGestureState.seekAmount != null -> InfoView(info = "${seekGestureState.seekAmountFormatted}\n[${seekGestureState.seekToPositionFormated}]")
                                 videoZoomAndContentScaleState.isZooming -> InfoView(info = "${(videoZoomAndContentScaleState.zoom * 100).toInt()}%")
                                 videoZoomAndContentScaleState.showContentScaleIndicator -> InfoView(info = stringResource(videoZoomAndContentScaleState.videoContentScale.nameRes()))
-                                controlsVisibilityState.controlsVisible -> ControlsMiddleView(player = player)
+                                controlsVisibilityState.controlsVisible -> ControlsMiddleView(
+                                    player = player,
+                                    onNextUnavailableClick = onNextUnavailableClick,
+                                    onPreviousUnavailableClick = onPreviousUnavailableClick,
+                                )
                                 else -> Unit
                             }
                         },
@@ -504,15 +510,26 @@ fun InfoView(
 }
 
 @Composable
-fun ControlsMiddleView(modifier: Modifier = Modifier, player: Player) {
+fun ControlsMiddleView(
+    modifier: Modifier = Modifier,
+    player: Player,
+    onNextUnavailableClick: () -> Unit = {},
+    onPreviousUnavailableClick: () -> Unit = {},
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(40.dp, alignment = Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PreviousButton(player = player)
+        PreviousButton(
+            player = player,
+            onUnavailableClick = onPreviousUnavailableClick,
+        )
         PlayPauseButton(player = player)
-        NextButton(player = player)
+        NextButton(
+            player = player,
+            onUnavailableClick = onNextUnavailableClick,
+        )
     }
 }
 

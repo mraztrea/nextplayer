@@ -107,7 +107,7 @@ import dev.anilbeesetti.nextplayer.feature.videopicker.state.rememberSelectionMa
 @Composable
 fun MediaPickerRoute(
     viewModel: MediaPickerViewModel = hiltViewModel(),
-    onPlayVideo: (uri: Uri) -> Unit,
+    onPlayVideo: (uri: Uri, siblingUris: List<Uri>?) -> Unit,
     onPlayVideos: (uris: List<Uri>) -> Unit,
     onFolderClick: (folderPath: String) -> Unit,
     onSettingsClick: () -> Unit,
@@ -118,7 +118,12 @@ fun MediaPickerRoute(
 
     MediaPickerScreen(
         uiState = uiState,
-        onPlayVideo = onPlayVideo,
+        onPlayVideo = { uri ->
+            onPlayVideo(
+                uri,
+                viewModel.buildPlaybackSiblingUris(uri).takeIf { it.isNotEmpty() },
+            )
+        },
         onPlayVideos = onPlayVideos,
         onNavigateUp = onNavigateUp,
         onFolderClick = onFolderClick,

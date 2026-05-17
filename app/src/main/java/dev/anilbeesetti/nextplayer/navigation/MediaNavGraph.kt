@@ -2,9 +2,11 @@ package dev.anilbeesetti.nextplayer.navigation
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.navigation
+import dev.anilbeesetti.nextplayer.core.model.PlaybackSourceType
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.utils.PlayerApi
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.MediaPickerRoute
@@ -25,10 +27,20 @@ fun NavGraphBuilder.mediaNavGraph(
     navigation<MediaRootRoute>(startDestination = MediaPickerRoute()) {
         mediaPickerScreen(
             onNavigateUp = navController::navigateUp,
-            onPlayVideo = { uri ->
+            onPlayVideo = { uri, siblingUris ->
                 val intent = Intent(context, PlayerActivity::class.java).apply {
                     action = Intent.ACTION_VIEW
                     data = uri
+                    siblingUris?.takeIf { it.isNotEmpty() }?.let { uris ->
+                        putStringArrayListExtra(
+                            PlayerApi.API_PLAYBACK_CONTEXT_URIS,
+                            ArrayList(uris.map(Uri::toString)),
+                        )
+                        putExtra(
+                            PlayerApi.API_PLAYBACK_SOURCE_TYPE,
+                            PlaybackSourceType.SOURCE_VISIBLE_ORDER.name,
+                        )
+                    }
                 }
                 context.startActivity(intent)
             },

@@ -21,9 +21,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.util.Consumer
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -34,10 +36,12 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
 import dev.anilbeesetti.nextplayer.core.common.extensions.getMediaContentUri
+import dev.anilbeesetti.nextplayer.core.model.PlaybackQueueSnapshot
 import dev.anilbeesetti.nextplayer.core.ui.theme.NextPlayerTheme
 import dev.anilbeesetti.nextplayer.feature.player.extensions.registerForSuspendActivityResult
 import dev.anilbeesetti.nextplayer.feature.player.extensions.setExtras
 import dev.anilbeesetti.nextplayer.feature.player.extensions.uriToSubtitleConfiguration
+import dev.anilbeesetti.nextplayer.feature.player.model.QueueHydrationStatus
 import dev.anilbeesetti.nextplayer.feature.player.service.PlayerService
 import dev.anilbeesetti.nextplayer.feature.player.service.addSubtitleTrack
 import dev.anilbeesetti.nextplayer.feature.player.service.stopPlayerSession
@@ -47,6 +51,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 
 val LocalUseMaterialYouControls = compositionLocalOf { false }
 
@@ -69,6 +74,7 @@ class PlayerActivity : ComponentActivity() {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
     private lateinit var playerApi: PlayerApi
+    private var lastAppliedQueueSignature: String? = null
 
     /**
      * Listeners
@@ -127,12 +133,27 @@ class PlayerActivity : ComponentActivity() {
                             playInBackground = true
                             finish()
                         },
+                        onNextUnavailableClick = {
+                            viewModel.showPlaybackNotice(getString(coreUiR.string.no_next_video_in_queue))
+                        },
+                        onPreviousUnavailableClick = {
+                            viewModel.showPlaybackNotice(getString(coreUiR.string.no_previous_video_in_queue))
+                        },
                     )
                 }
             }
         }
 
         playerApi = PlayerApi(this)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.queueHydrationState.collect { state ->
+                    if (state.status != QueueHydrationStatus.READY) return@collect
+                    val snapshot = state.snapshot ?: return@collect
+                    applyHydratedQueue(snapshot)
+                }
+            }
+        }
     }
 
     override fun onStart() {
@@ -182,17 +203,20 @@ class PlayerActivity : ComponentActivity() {
 
     private fun startPlayback() {
         val uri = intent.data ?: return
+        val playbackUri = getMediaContentUri(uri) ?: uri
+        val launchContext = playerApi.getPlaybackLaunchContext(playbackUri.toString())
 
         val returningFromBackground = !isIntentNew && mediaController?.currentMediaItem != null
         val isNewUriTheCurrentMediaItem = mediaController?.currentMediaItem?.localConfiguration?.uri.toString() == uri.toString()
 
-        if (returningFromBackground || isNewUriTheCurrentMediaItem) {
+        if (returningFromBackground || (isNewUriTheCurrentMediaItem && launchContext == null)) {
             mediaController?.prepare()
             mediaController?.playWhenReady = viewModel.playWhenReady
             return
         }
 
         isIntentNew = false
+        lastAppliedQueueSignature = null
 
         lifecycleScope.launch {
             playVideo(uri)
@@ -200,59 +224,116 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private suspend fun playVideo(uri: Uri) = withContext(Dispatchers.Default) {
-        val mediaContentUri = getMediaContentUri(uri)
-        val playlist = playerApi.getPlaylist().takeIf { it.isNotEmpty() }
-            ?: mediaContentUri?.let { mediaUri ->
-                viewModel.getPlaylistFromUri(mediaUri)
-                    .map { it.uriString }
-                    .toMutableList()
-                    .apply {
-                        if (!contains(mediaUri.toString())) {
-                            add(index = 0, element = mediaUri.toString())
-                        }
-                    }
-            } ?: listOf(uri.toString())
-
-        val mediaItemIndexToPlay = playlist.indexOfFirst {
-            it == (mediaContentUri ?: uri).toString()
-        }.takeIf { it >= 0 } ?: 0
-
-        val mediaItems = playlist.mapIndexed { index, uri ->
-            MediaItem.Builder().apply {
-                setUri(uri)
-                setMediaId(uri)
-                if (index == mediaItemIndexToPlay) {
-                    setMediaMetadata(
-                        MediaMetadata.Builder().apply {
-                            setTitle(playerApi.title)
-                            setExtras(positionMs = playerApi.position?.toLong())
-                        }.build(),
-                    )
-                    val apiSubs = playerApi.getSubs().map { subtitle ->
-                        uriToSubtitleConfiguration(
-                            uri = subtitle.uri,
-                            subtitleEncoding = playerPreferences?.subtitleTextEncoding ?: "",
-                            isSelected = subtitle.isSelected,
-                        )
-                    }
-                    setSubtitleConfigurations(apiSubs)
-                }
-            }.build()
-        }
+        val playbackUri = getMediaContentUri(uri) ?: uri
+        val currentUriString = playbackUri.toString()
+        val currentMediaItem = buildCurrentPlaybackMediaItem(
+            uriString = currentUriString,
+        )
+        val launchContext = playerApi.getPlaybackLaunchContext(currentUriString)
 
         withContext(Dispatchers.Main) {
             mediaController?.run {
-                setMediaItems(mediaItems, mediaItemIndexToPlay, playerApi.position?.toLong() ?: C.TIME_UNSET)
+                setMediaItem(currentMediaItem, playerApi.position?.toLong() ?: C.TIME_UNSET)
                 playWhenReady = viewModel.playWhenReady
                 prepare()
             }
         }
+
+        viewModel.hydratePlaybackQueue(playbackUri, launchContext)
+    }
+
+    private suspend fun buildCurrentPlaybackMediaItem(
+        uriString: String,
+    ): MediaItem {
+        return MediaItem.Builder().apply {
+            setUri(uriString)
+            setMediaId(uriString)
+            setMediaMetadata(
+                MediaMetadata.Builder().apply {
+                    setTitle(playerApi.title)
+                    setExtras(positionMs = playerApi.position?.toLong())
+                }.build(),
+            )
+            val apiSubs = playerApi.getSubs().map { subtitle ->
+                uriToSubtitleConfiguration(
+                    uri = subtitle.uri,
+                    subtitleEncoding = playerPreferences?.subtitleTextEncoding ?: "",
+                    isSelected = subtitle.isSelected,
+                )
+            }
+            setSubtitleConfigurations(apiSubs)
+        }.build()
+    }
+
+    private fun buildQueueMediaItem(uriString: String): MediaItem {
+        return MediaItem.Builder()
+            .setUri(uriString)
+            .setMediaId(uriString)
+            .build()
+    }
+
+    private fun applyHydratedQueue(snapshot: PlaybackQueueSnapshot) {
+        val controller = mediaController ?: return
+        if (snapshot.uriStrings.size <= 1) return
+        if (controller.currentMediaItem?.mediaId != snapshot.currentUriString) return
+
+        val queueSignature = buildString {
+            append(snapshot.sourceType.name)
+            append(':')
+            append(snapshot.uriStrings.joinToString("|"))
+        }
+        if (queueSignature == lastAppliedQueueSignature) return
+
+        val currentQueue = buildList {
+            repeat(controller.mediaItemCount) { index ->
+                add(controller.getMediaItemAt(index).mediaId)
+            }
+        }
+        if (currentQueue == snapshot.uriStrings) {
+            lastAppliedQueueSignature = queueSignature
+            return
+        }
+
+        if (controller.mediaItemCount == 1 && controller.currentMediaItem?.mediaId == snapshot.currentUriString) {
+            val previousItems = snapshot.entries
+                .take(snapshot.currentIndex)
+                .map { buildQueueMediaItem(it.uriString) }
+            val nextItems = snapshot.entries
+                .drop(snapshot.currentIndex + 1)
+                .map { buildQueueMediaItem(it.uriString) }
+            if (previousItems.isNotEmpty()) {
+                controller.addMediaItems(0, previousItems)
+            }
+            if (nextItems.isNotEmpty()) {
+                controller.addMediaItems(controller.mediaItemCount, nextItems)
+            }
+            lastAppliedQueueSignature = queueSignature
+            return
+        }
+
+        val currentPosition = controller.currentPosition
+        val playWhenReady = controller.playWhenReady
+        controller.setMediaItems(
+            snapshot.entries.mapIndexed { index, entry ->
+                if (index == snapshot.currentIndex) {
+                    controller.currentMediaItem ?: buildQueueMediaItem(entry.uriString)
+                } else {
+                    buildQueueMediaItem(entry.uriString)
+                }
+            },
+            snapshot.currentIndex,
+            currentPosition,
+        )
+        controller.playWhenReady = playWhenReady
+        controller.prepare()
+        lastAppliedQueueSignature = queueSignature
     }
 
     private fun playbackStateListener() = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
             intent.data = mediaItem?.localConfiguration?.uri
+            isPlaybackFinished = false
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -264,6 +345,7 @@ class PlayerActivity : ComponentActivity() {
             super.onPlaybackStateChanged(playbackState)
             when (playbackState) {
                 Player.STATE_ENDED -> {
+                    if (mediaController?.hasNextMediaItem() == true) return
                     isPlaybackFinished = mediaController?.playbackState == Player.STATE_ENDED
                     finishAndStopPlayerSession()
                 }
@@ -277,6 +359,7 @@ class PlayerActivity : ComponentActivity() {
 
             if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
                 if (mediaController?.repeatMode != Player.REPEAT_MODE_OFF) return
+                if (mediaController?.hasNextMediaItem() == true) return
                 isPlaybackFinished = true
                 finishAndStopPlayerSession()
             }
@@ -299,7 +382,9 @@ class PlayerActivity : ComponentActivity() {
         super.onNewIntent(intent)
         if (intent.data != null) {
             setIntent(intent)
+            playerApi = PlayerApi(this)
             isIntentNew = true
+            lastAppliedQueueSignature = null
             if (mediaController != null) {
                 startPlayback()
             }

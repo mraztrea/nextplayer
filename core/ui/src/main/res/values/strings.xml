@@ -215,6 +215,8 @@
     <string name="open_network_stream">Open network stream</string>
     <string name="exit">Exit</string>
     <string name="play_next_video">Play next video</string>
+    <string name="no_next_video_in_queue">No next video</string>
+    <string name="no_previous_video_in_queue">No previous video</string>
     <string name="skip_silence">Skip silence</string>
     <string name="folder">Folder</string>
     <string name="folders">Folders</string>

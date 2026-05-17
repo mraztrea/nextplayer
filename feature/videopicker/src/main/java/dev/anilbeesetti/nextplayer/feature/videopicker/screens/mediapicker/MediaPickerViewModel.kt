@@ -80,6 +80,20 @@ class MediaPickerViewModel @Inject constructor(
         }
     }
 
+    fun buildPlaybackSiblingUris(currentUri: Uri): List<Uri> {
+        val folder = uiStateInternal.value.mediaDataState.result ?: return emptyList()
+        val currentUriString = currentUri.toString()
+        val currentVideo = folder.allMediaList.firstOrNull { it.uriString == currentUriString } ?: return emptyList()
+        val siblings = folder.allMediaList
+            .filter { video -> video.parentPath == currentVideo.parentPath }
+            .ifEmpty {
+                folder.mediaList.takeIf { videos -> videos.any { video -> video.uriString == currentUriString } }
+                    ?: listOf(currentVideo)
+            }
+
+        return siblings.map { video -> video.uriString.toUri() }
+    }
+
     private fun deleteFolders(folders: List<Folder>) {
         viewModelScope.launch {
             val uris = folders.flatMap { folder ->
