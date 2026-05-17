@@ -6,6 +6,7 @@ import android.content.Intent
 import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
@@ -20,6 +21,7 @@ import androidx.media3.common.Player.DISCONTINUITY_REASON_SEEK
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
@@ -51,6 +53,8 @@ import dev.anilbeesetti.nextplayer.core.model.Resume
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngine
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
+import dev.anilbeesetti.nextplayer.feature.player.model.LoadControlConfig
+import dev.anilbeesetti.nextplayer.feature.player.model.MediaSourceType
 import dev.anilbeesetti.nextplayer.feature.player.R
 import dev.anilbeesetti.nextplayer.feature.player.extensions.addAdditionalSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioTrackIndex
@@ -116,6 +120,7 @@ class PlayerService : MediaSessionService() {
     private val customCommands = CustomCommands.asSessionCommands()
 
     private var isMediaItemReady = false
+    private var playerStartTimeMs: Long = 0L
 
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var currentVolumeGain: Int = 0
@@ -139,6 +144,15 @@ class PlayerService : MediaSessionService() {
                 metadata.positionMs?.takeIf { playerPreferences.resume == Resume.YES }?.let {
                     mediaSession?.player?.seekTo(it)
                 }
+            }
+
+            // Detect source type và set wake mode phù hợp
+            mediaItem?.mediaId?.toUri()?.let { uri ->
+                val wakeMode = when (MediaSourceType.fromUri(uri)) {
+                    MediaSourceType.LOCAL -> C.WAKE_MODE_LOCAL
+                    MediaSourceType.NETWORK -> C.WAKE_MODE_NETWORK
+                }
+                (mediaSession?.player as? ExoPlayer)?.setWakeMode(wakeMode)
             }
         }
 
@@ -311,10 +325,27 @@ class PlayerService : MediaSessionService() {
             super.onRenderedFirstFrame()
             val player = mediaSession?.player ?: return
             val currentMediaItem = player.currentMediaItem ?: return
+
+            // Log thời gian startup để đo hiệu suất
+            val startupMs = System.currentTimeMillis() - playerStartTimeMs
+            if (playerStartTimeMs > 0) {
+                Log.d("PlayerPerf", "First frame rendered in ${startupMs}ms for ${currentMediaItem.mediaId}")
+            }
+
             // Update the media metadata duration so that it will be used later in position discontinuity handling
             player.replaceMediaItem(
                 player.currentMediaItemIndex,
                 currentMediaItem.copy(durationMs = player.duration.coerceAtLeast(0))
+            )
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            super.onPlayerError(error)
+            Log.e(
+                "PlayerPerf",
+                "Playback error: code=${error.errorCode}, " +
+                    "message=${error.message}, " +
+                    "cause=${error.cause?.message}",
             )
         }
 
@@ -576,9 +607,15 @@ class PlayerService : MediaSessionService() {
             )
         }
 
+        // Tối ưu buffer cho local playback — khởi động nhanh hơn
+        val loadControl = LoadControlConfig.forLocal().toLoadControl()
+
+        playerStartTimeMs = System.currentTimeMillis()
+
         val player = ExoPlayer.Builder(applicationContext)
             .setRenderersFactory(renderersFactory)
             .setTrackSelector(trackSelector)
+            .setLoadControl(loadControl)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)

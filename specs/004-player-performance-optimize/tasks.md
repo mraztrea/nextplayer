@@ -24,8 +24,8 @@
 
 **Purpose**: Tạo enum và utility cơ bản cần thiết cho tất cả user stories
 
-- [ ] T001 [P] Tạo enum `MediaSourceType` với companion `fromUri()` trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/model/MediaSourceType.kt`
-- [ ] T002 [P] Tạo data class `LoadControlConfig` chứa buffer parameters cho mỗi `MediaSourceType` trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/model/LoadControlConfig.kt`
+- [x] T001 [P] Tạo enum `MediaSourceType` với companion `fromUri()` trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/model/MediaSourceType.kt`
+- [x] T002 [P] Tạo data class `LoadControlConfig` chứa buffer parameters cho mỗi `MediaSourceType` trong `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/model/LoadControlConfig.kt`
 
 **Checkpoint**: Shared models sẵn sàng — có thể bắt đầu US1 và US3 song song
 
@@ -44,9 +44,9 @@
 
 ### Tasks
 
-- [ ] T003 [US1] Thêm `DefaultLoadControl` vào `ExoPlayer.Builder` trong method `onCreate()` tại `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/service/PlayerService.kt` (line 579). Sử dụng `LoadControlConfig.forLocal()` với: `minBufferMs=15000`, `maxBufferMs=50000`, `bufferForPlaybackMs=500`, `bufferForPlaybackAfterRebufferMs=1000`
-- [ ] T004 [US1] Thêm import `DefaultLoadControl` và `MediaSourceType` vào `PlayerService.kt`
-- [ ] T005 [US1] Thêm logging vào `playbackStateListener.onRenderedFirstFrame()` (line 310) để log thời gian startup: `Log.d("PlayerPerf", "First frame rendered in ${System.currentTimeMillis() - startTimeMs}ms")`
+- [x] T003 [US1] Thêm `DefaultLoadControl` vào `ExoPlayer.Builder` trong method `onCreate()` tại `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/service/PlayerService.kt` (line 579). Sử dụng `LoadControlConfig.forLocal()` với: `minBufferMs=15000`, `maxBufferMs=50000`, `bufferForPlaybackMs=500`, `bufferForPlaybackAfterRebufferMs=1000`
+- [x] T004 [US1] Thêm import `DefaultLoadControl` và `MediaSourceType` vào `PlayerService.kt`
+- [x] T005 [US1] Thêm logging vào `playbackStateListener.onRenderedFirstFrame()` (line 310) để log thời gian startup: `Log.d("PlayerPerf", "First frame rendered in ${System.currentTimeMillis() - startTimeMs}ms")`
 
 **Checkpoint US1**: Startup time có thể đo được qua logcat. Build & test video local.
 
@@ -62,8 +62,8 @@
 
 ### Tasks
 
-- [ ] T006 [P] [US2] Thêm xử lý `onPlayerError()` vào `playbackStateListener` trong `PlayerService.kt` để log chi tiết khi codec error xảy ra: loại error, codec name, format không hỗ trợ
-- [ ] T007 [US2] Xác nhận `setEnableDecoderFallback(true)` (line 562) đã được set — verify rằng khi hardware decoder fail, ExoPlayer tự động fallback sang FFmpeg decoder
+- [x] T006 [P] [US2] Thêm xử lý `onPlayerError()` vào `playbackStateListener` trong `PlayerService.kt` để log chi tiết khi codec error xảy ra: loại error, codec name, format không hỗ trợ
+- [x] T007 [US2] Xác nhận `setEnableDecoderFallback(true)` (line 562) đã được set — verify rằng khi hardware decoder fail, ExoPlayer tự động fallback sang FFmpeg decoder
 
 **Checkpoint US2**: Error logging hoạt động, decoder fallback được xác nhận.
 
@@ -82,8 +82,8 @@
 
 ### Tasks
 
-- [ ] T008 [US3] Thêm wake mode detection trong `onMediaItemTransition()` (line 124) tại `PlayerService.kt`. Detect URI scheme → gọi `ExoPlayer.setWakeMode()` với `C.WAKE_MODE_LOCAL` hoặc `C.WAKE_MODE_NETWORK`
-- [ ] T009 [US3] Thêm import `MediaSourceType` vào `PlayerService.kt` (nếu chưa có từ T004)
+- [x] T008 [US3] Thêm wake mode detection trong `onMediaItemTransition()` (line 124) tại `PlayerService.kt`. Detect URI scheme → gọi `ExoPlayer.setWakeMode()` với `C.WAKE_MODE_LOCAL` hoặc `C.WAKE_MODE_NETWORK`
+- [x] T009 [US3] Thêm import `MediaSourceType` vào `PlayerService.kt` (nếu chưa có từ T004)
 
 **Checkpoint US3**: Wake mode được set đúng loại. Verify bằng `adb shell dumpsys power`.
 
@@ -108,7 +108,7 @@
 
 **Purpose**: Đảm bảo tất cả thay đổi ổn định và đo lường được
 
-- [ ] T010 Build project và verify không có compilation errors
+- [x] T010 Build project và verify không có compilation errors
 - [ ] T011 Phát video local 1080p, 4K HEVC — verify không stutter, first frame nhanh
 - [ ] T012 Phát video chứa audio DTS, TrueHD — verify audio phát bình thường (đã có sẵn)
 - [ ] T013 Phát video từ network stream (http/smb) — verify wake mode đúng loại
