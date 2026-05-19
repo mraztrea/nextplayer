@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.model.DoubleTapGesture
+import dev.anilbeesetti.nextplayer.feature.player.extensions.seekToWithDirection
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -88,7 +89,10 @@ class TapGestureState(
 
         when (action) {
             DoubleTapAction.SEEK_BACKWARD -> {
-                player.seekTo(player.currentPosition - seekIncrementMillis)
+                player.seekToWithDirection(
+                    positionMs = (player.currentPosition - seekIncrementMillis).coerceAtLeast(0L),
+                    isForward = false,
+                )
                 if (seekMillis > 0L) {
                     seekMillis = 0L
                 }
@@ -97,7 +101,10 @@ class TapGestureState(
             }
 
             DoubleTapAction.SEEK_FORWARD -> {
-                player.seekTo(player.currentPosition + seekIncrementMillis)
+                player.seekToWithDirection(
+                    positionMs = (player.currentPosition + seekIncrementMillis).coerceAtMost(player.duration),
+                    isForward = true,
+                )
                 if (seekMillis < 0L) {
                     seekMillis = 0L
                 }

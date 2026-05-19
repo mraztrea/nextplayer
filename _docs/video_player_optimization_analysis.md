@@ -1,7 +1,8 @@
 # 🎬 Phân Tích Tối Ưu Hiệu Suất Video Player Module (Code Reference)
 
-> **Nguồn**: Decompiled từ `com.alphainventor.filemanager.viewer` — module video player của ứng dụng File Manager.
-> **Framework**: Media3 ExoPlayer + FFmpeg native decoder
+> **Nguồn**: Decompiled từ `com.alphainventor.filemanager.viewer` — module video player của ứng dụng **CX File Explorer** (app có tốc độ seek/load nhanh, lag thấp trên cả LAN lẫn local).
+> **Framework**: Media3 ExoPlayer (obfuscated) + FFmpeg native decoder extension
+> **Mục đích**: Tham khảo để tối ưu hóa **NextPlayer**
 
 ---
 
@@ -10,128 +11,253 @@
 ```mermaid
 graph TD
     A[VideoPlayerActivity] --> B[ExoPlayer.Builder]
-    B --> C[Custom RenderersFactory - $u class]
-    B --> D[DefaultLoadControl - ax.X0.d]
-    B --> E[DefaultTrackSelector - ax.g1.n]
+    B --> C[DefaultRenderersFactory\nExtensionMode = ON]
+    B --> D[DefaultLoadControl\nDefault buffer]
+    B --> E[VideoPlayerActivity$u\nCustom DefaultTrackSelector]
     A --> F[Player.Listener - $x class]
     A --> G[AsyncTask MediaSetup - $v class]
     A --> H[Track Selection UI - f class]
-    C --> I[FFmpeg Software Decoder]
-    C --> J[MediaCodec Hardware Decoder]
-    I --> K[libex.ffmpeg.exo.so / libfm.ffmpeg.exo.so]
+    C --> I[FFmpeg Extension\nAudio-only SW decoder]
+    C --> J[MediaCodec\nHW Video Decoder]
+    I --> K[libex.ffmpeg.exo.so\nlibfm.ffmpeg.exo.so]
+    A --> L[Seek Engine\no4 / m2 / n2]
+    L --> M[SeekParameters\nNEXT_SYNC / PREV_SYNC]
+    L --> N[Throttle 150ms]
 ```
 
 ---
 
 ## 2. Các Kỹ Thuật Tối Ưu Chính
 
-### 2.1. ExoPlayer Builder Configuration
+### 2.1. ExoPlayer Builder — Cấu Hình Đầy Đủ
 
-**File**: [VideoPlayerActivity.java L832-877](file:///d:/Projects/CaNhan/nextplayer/code_reference/video_player_module/java_source/com/alphainventor/filemanager/viewer/VideoPlayerActivity.java#L832-L877)
+**Code (đã reverse-engineer từ `M2()` trong VideoPlayerActivity.java):**
 
 ```java
-// L842-866: Khởi tạo ExoPlayer
-v0_4 = new ax.g1.a$b();              // TrackSelector.Parameters.Builder
-v3_2 = new ax.X0.d(this);             // DefaultLoadControl
-v3_2.o(1);                             // setTargetBufferBytes(1) — buffer tối thiểu!
+// Bước 1: RenderersFactory với FFmpeg extension enabled
+DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(context);
+renderersFactory.setExtensionRendererMode(EXTENSION_RENDERER_MODE_ON);  // .o(1)
+// → Ưu tiên ExoPlayer extension (FFmpeg) cho các codec không được HW hỗ trợ
 
-// Custom RenderersFactory với FFmpeg codec filtering
-v5_4 = new VideoPlayerActivity$u(this, v0_4, v4_2);  // Custom RenderersFactory
-v5_4.m(this.O0);  // Apply track parameters
+// Bước 2: Custom TrackSelector lọc theo tên codec ưa thích
+String preferredRenderer = getPreferredRendererFromSettings();  // ax.p3.m.f(this)
+VideoPlayerActivity$u trackSelector = new VideoPlayerActivity$u(
+    context, audioAttributes, preferredRenderer
+);
+trackSelector.setParameters(savedParameters);  // .m(this.O0)
 
-// ExoPlayer Builder
-v4_4 = new androidx.media3.exoplayer.j();  // DefaultMediaSourceFactory (obfuscated)
-v5_6 = new ExoPlayer$b(this, v3_2);       // ExoPlayer.Builder(context, loadControl)
-v5_6.k(this.N0);                           // setRenderersFactory(customFactory)
-v5_6.h(v4_4);                             // setMediaSourceFactory
-v5_6.i(10000);                            // setSeekBackIncrementMs(10000) = 10s
-v5_6.j(10000);                            // setSeekForwardIncrementMs(10000) = 10s
+// Bước 3: ExoPlayer.Builder
+DefaultLoadControl loadControl = new DefaultLoadControl();  // new j()
+ExoPlayer player = new ExoPlayer.Builder(context, renderersFactory)
+    .setTrackSelector(trackSelector)        // .k()
+    .setLoadControl(loadControl)            // .h()
+    .setSeekBackIncrementMs(10_000)         // .i(10000) — seek lùi 10 giây
+    .setSeekForwardIncrementMs(10_000)      // .j(10000) — seek tiến 10 giây
+    .build();                               // .g()
 
-v3_5 = v5_6.g();                          // .build()
-this.W = v3_5;                            // Store ExoPlayer instance
-v3_5.a(ax.X0.Y.g);                        // setAudioAttributes(DEFAULT)
+// Bước 4: Cấu hình sau khi build
+player.setSeekParameters(SeekParameters.DEFAULT);   // .a(ax.X0.Y.g)
+player.addListener(playerListener);                 // .H()
+player.setPlayWhenReady(savedPlayWhenReady);        // .L()
+player.setWakeMode(isNetworkFile ? WAKE_MODE_NETWORK : WAKE_MODE_LOCAL);  // .c()
+```
+
+> [!NOTE]
+> **Tóm tắt cấu hình**: App dùng `DefaultLoadControl` tiêu chuẩn + `EXTENSION_RENDERER_MODE_ON` (bật FFmpeg extension). Không có buffer tùy chỉnh ở đây — hiệu suất đến từ các kỹ thuật khác phân tích bên dưới.
+
+---
+
+### 2.2. ⚡ Seek Optimization — Kỹ Thuật Quan Trọng Nhất
+
+Đây là **lý do cốt lõi** khiến seek của app cũ nhanh và mượt. Gồm 3 lớp tối ưu phối hợp:
+
+#### 2.2.1. Seek theo Keyframe (SeekParameters)
+
+**Code trong `o4()` — hàm thực thi seek:**
+
+```java
+private void o4(boolean directionChanged) {
+    long seekTarget = this.u0;  // vị trí đích
+    boolean seekingForward = this.v0;
+
+    if (seekingForward) {
+        // Seek tiến → nhảy đến keyframe KẾ TIẾP
+        player.setSeekParameters(SeekParameters.NEXT_SYNC);   // .a(ax.X0.Y.e)
+    } else {
+        // Seek lùi → nhảy đến keyframe TRƯỚC ĐÓ
+        player.setSeekParameters(SeekParameters.PREVIOUS_SYNC); // .a(ax.X0.Y.f)
+    }
+
+    player.seekTo(seekTarget);  // .s()
+
+    // Reset về DEFAULT sau khi seek
+    player.setSeekParameters(SeekParameters.DEFAULT);  // .a(ax.X0.Y.g)
+    this.t0 = System.currentTimeMillis();
+}
 ```
 
 > [!IMPORTANT]
-> **Điểm tối ưu quan trọng nhất**: `DefaultLoadControl` với `setTargetBufferBytes(1)` — buffer cực kỳ nhỏ, giúp:
-> - Giảm memory footprint
-> - Khởi động phát video nhanh hơn
-> - Phù hợp với local playback (không cần buffer network)
+> **Keyframe-based seeking**: Thay vì decode đến frame chính xác (tốn kém), app nhảy thẳng đến I-frame gần nhất.
+> - Seek tiến (drag right): `NEXT_SYNC` → keyframe tiếp theo
+> - Seek lùi (drag left): `PREVIOUS_SYNC` → keyframe trước đó
+>
+> **Kết quả**: Seek gần như tức thì vì không cần decode inter-frames (B/P frames). Đây là lý do seek cực nhanh kể cả với video 4K hay file qua mạng.
 
-### 2.2. Quản Lý Wake Mode Thông Minh
+#### 2.2.2. Seek Throttling — Giới Hạn Tần Suất Seek
+
+**Code trong `n2()` — hàm nhận event từ seekbar/gesture:**
 
 ```java
-// L870-873: Thiết lập WakeMode dựa trên loại media
-if (!this.x1) {
-    this.W.c(1);    // WAKE_MODE_LOCAL cho file local
-} else {
-    this.W.c(2);    // WAKE_MODE_NETWORK cho stream
+private static final long SEEK_THROTTLE_MS = 150;  // this.w1 = 150
+
+private void n2(long seekPosition, boolean seekingForward, boolean updateLabel) {
+    if (updateLabel) {
+        this.A.setText(formatTime(seekPosition));  // Cập nhật label ngay lập tức
+    }
+
+    this.u0 = seekPosition;       // Lưu vị trí đích
+    boolean directionChanged = (this.v0 != seekingForward);
+    this.v0 = seekingForward;
+
+    long now = System.currentTimeMillis();
+
+    // Chỉ thực sự seek nếu:
+    // 1. Đổi chiều seek (forward ↔ backward), HOẶC
+    // 2. Đã qua 150ms kể từ lần seek cuối
+    if (directionChanged || (now - this.t0) >= SEEK_THROTTLE_MS) {
+        o4(directionChanged);  // Thực thi seek thực sự
+    }
+    // else: chỉ cập nhật UI label, không thực sự seek
 }
 ```
 
 > [!TIP]
-> Module phân biệt rõ ràng giữa **local file** và **network stream** (`x1` flag) để áp dụng WakeMode phù hợp, tránh giữ CPU/WiFi wake lock không cần thiết.
+> **Throttle 150ms**: Khi user kéo seekbar nhanh, UI label cập nhật mỗi frame (60fps) nhưng ExoPlayer chỉ nhận lệnh seek tối đa 7 lần/giây. Điều này ngăn queue lệnh seek tràn và giữ player luôn phản hồi.
+>
+> **Đổi chiều**: Khi user đổi hướng kéo, seek được thực thi ngay lập tức bất kể throttle.
 
-### 2.3. FFmpeg Software Audio Decoder (Dual-Library Architecture)
+#### 2.2.3. Seek bằng Nút (Button Seek) — Khác với Scrub
 
-**Files**: [FfmpegLibrary.java](file:///d:/Projects/CaNhan/nextplayer/code_reference/video_player_module/java_source/com/google/android/exoplayer2/ext/ffmpeg/FfmpegLibrary.java), [FfmpegDecoder.java](file:///d:/Projects/CaNhan/nextplayer/code_reference/video_player_module/java_source/com/google/android/exoplayer2/ext/ffmpeg/FfmpegDecoder.java), [a.java (FFmpeg Audio Renderer)](file:///d:/Projects/CaNhan/nextplayer/code_reference/video_player_module/java_source/com/google/android/exoplayer2/ext/ffmpeg/a.java)
+**Code trong `m2(boolean forward)`:**
+
+```java
+private void m2(boolean forward) {
+    long incrementMs = ax.p3.m.b(this) * 1000L;  // Lấy increment từ settings
+    long currentPos = player.getCurrentPosition();
+    long seekTo = forward ? (currentPos + incrementMs) : (currentPos - incrementMs);
+    seekTo = Math.max(0, Math.min(seekTo, player.getDuration()));
+
+    // Đặt SeekParameters TRƯỚC seek
+    player.setSeekParameters(SeekParameters.CLOSEST_SYNC);  // .a(ax.X0.Y.c)
+    player.seekTo(seekTo);
+    // Reset sau seek
+    player.setSeekParameters(SeekParameters.DEFAULT);       // .a(ax.X0.Y.g)
+
+    // Hiển thị OSD overlay
+    showSeekOverlay(forward ? "+" + formatTime(incrementMs) : "-" + formatTime(incrementMs));
+}
+```
+
+---
+
+### 2.3. Wake Mode Thông Minh — Tối Ưu Cho LAN
+
+```java
+// Phát hiện loại nguồn media (trong L2() và constructor)
+boolean isNetworkFile = false;
+for (Uri uri : allUris) {
+    if (isNetworkScheme(uri.getScheme())) {   // ax.W2.w.J()
+        isNetworkFile = true;
+    }
+    if (isLanFile(context, uri)) {            // com.alphainventor.filemanager.service.b.k()
+        isNetworkFile = true;
+        isLanStorage = true;
+        // Lấy thông tin server LAN để tối ưu
+        LanFileInfo info = getLanFileInfo(uri.getPath());
+        if (info != null) {
+            service.setLanConnectionMode(1, info.serverInfo());
+        }
+    }
+}
+
+// Áp dụng WakeMode phù hợp
+if (!isNetworkFile) {
+    player.setWakeMode(C.WAKE_MODE_LOCAL);    // Chỉ giữ CPU wake
+} else {
+    player.setWakeMode(C.WAKE_MODE_NETWORK);  // Giữ CPU + WiFi lock
+}
+```
+
+> [!NOTE]
+> **`WAKE_MODE_NETWORK`** acquires `WifiManager.WifiLock` (type `WIFI_MODE_FULL_HIGH_PERF`), ngăn WiFi power saving làm tăng latency khi stream qua LAN. Không dùng cho file local để tiết kiệm pin.
+
+---
+
+### 2.4. FFmpeg Extension — Dual-Library Architecture
 
 **Kiến trúc Dual-Library đặc biệt:**
 - `libex.ffmpeg.exo.so` — Thư viện FFmpeg chính (prefix `ex`)
 - `libfm.ffmpeg.exo.so` — Thư viện FFmpeg backup (prefix `fm`)
-- Tự động fallback từ `ex` sang `fm` nếu library chính không load được
+- Tự động fallback: nếu `ex` không load được, thử `fm`
+
+**Chiến lược Audio vs Video decoder:**
+
+| Loại | Decoder | Lý do |
+|------|---------|-------|
+| **Video** | MediaCodec (HW) | Hardware-accelerated, zero-copy buffer |
+| **Audio** | FFmpeg SW (nếu HW không hỗ trợ) | Hỗ trợ AC3, DTS, TrueHD, FLAC... |
+
+**`setExtensionRendererMode(EXTENSION_RENDERER_MODE_ON)`**:
+- Bật ExoPlayer FFmpeg extension renderer
+- FFmpeg chỉ được dùng khi HW codec không hỗ trợ format đó
+- Video luôn ưu tiên MediaCodec HW để đảm bảo zero-latency
 
 **Audio codecs được hỗ trợ qua FFmpeg:**
 
-| MIME Type | FFmpeg Decoder | Ghi chú |
-|-----------|---------------|---------|
-| `audio/mp4a-latm` | `aac` | AAC |
-| `audio/mpeg` | `mp3` | MP3, MPEG-L1, L2 |
-| `audio/ac3` | `ac3` | Dolby AC3 |
-| `audio/eac3` | `eac3` | E-AC3, JOC |
-| `audio/vnd.dts` | `dca` | DTS, DTS-HD |
-| `audio/flac` | `flac` | FLAC |
-| `audio/opus` | `opus` | Opus |
-| `audio/vorbis` | `vorbis` | Vorbis |
+| MIME Type | FFmpeg Codec | Use case |
+|-----------|-------------|----------|
+| `audio/ac3` | `ac3` | Dolby AC3 (rất phổ biến trong MKV) |
+| `audio/eac3` | `eac3` | E-AC3, JOC (Dolby Atmos) |
+| `audio/vnd.dts` | `dca` | DTS, DTS-HD (Blu-ray) |
+| `audio/true-hd` | `truehd` | Dolby TrueHD (Blu-ray) |
+| `audio/flac` | `flac` | FLAC lossless |
 | `audio/alac` | `alac` | Apple Lossless |
-| `audio/true-hd` | `truehd` | Dolby TrueHD |
-| `audio/3gpp` | `amrnb` | AMR-NB |
-| `audio/amr-wb` | `amrwb` | AMR-WB |
-| `audio/g711-alaw` | `pcm_alaw` | PCM A-law |
-| `audio/g711-mlaw` | `pcm_mulaw` | PCM µ-law |
+| `audio/opus` | `opus` | Opus (WebM) |
+| `audio/vorbis` | `vorbis` | Vorbis (WebM) |
+| `audio/mpeg` | `mp3` | MP3 (fallback) |
 
-> [!NOTE]
-> FFmpeg decoder chỉ dùng cho **audio**. Video vẫn sử dụng **MediaCodec hardware decoder**. Điều này đảm bảo phát audio format hiếm mà hardware không hỗ trợ, đồng thời video luôn được hardware-accelerated.
+---
 
-**Buffer output configuration:**
-```java
-// Non-float: buffer 65536 bytes, encoding = 2 (16-bit PCM)
-// Float:     buffer 131072 bytes, encoding = 4 (32-bit float)
-```
+### 2.5. Custom Track Selector — Preferred Codec Selection
 
-### 2.4. Custom RenderersFactory — Codec Filtering
-
-**File**: [VideoPlayerActivity$u.java](file:///d:/Projects/CaNhan/nextplayer/code_reference/video_player_module/java_source/com/alphainventor/filemanager/viewer/VideoPlayerActivity$u.java)
+**File**: [VideoPlayerActivity$u.java](code_reference/video_player_module/java_source/com/alphainventor/filemanager/viewer/VideoPlayerActivity$u.java)
 
 ```java
-class VideoPlayerActivity$u extends ax.g1.n {  // extends DefaultRenderersFactory
-    String m;  // preferred codec name
+// VideoPlayerActivity$u extends DefaultTrackSelector
+class VideoPlayerActivity$u extends DefaultTrackSelector {
+    String m;  // Tên renderer/codec ưa thích (user setting)
 
-    // Override codec selection
-    protected Pair c0(G$a codecInfo, int[][][] capabilities, n$e parameters, String preferredCodec) {
-        Pair result = super.c0(codecInfo, capabilities, parameters, preferredCodec);
-        
-        // Kiểm tra trạng thái T1 và S1 (error flags)
-        if (VideoPlayerActivity.Q()) {
-            if (VideoPlayerActivity.S()) return null;  // Disable nếu cả 2 flag lỗi
+    @Override
+    protected @Nullable Pair<DecoderInfo, Integer> selectVideoCodec(
+            MediaCodecSelector selector,
+            Format format,
+            List<DecoderInfo> decoderInfos,
+            ...) {
+
+        Pair<DecoderInfo, Integer> result = super.selectVideoCodec(...);
+
+        // Nếu có codec lỗi trước đó (S1/T1 flags)
+        if (errorStateT1) {
+            if (errorStateS1) return null;  // Disable hoàn toàn nếu lỗi nghiêm trọng
         } else {
-            // Filtering codec: chỉ chọn codec có tên khớp preferred
-            if (!TextUtils.isEmpty(this.m) && formats != null) {
-                boolean hasMatch = false;
-                for (int i = 0; i < formats.a; i++) {
-                    if (g0(formats.b(i), this.m)) hasMatch = true;
+            // Lọc: chỉ chọn codec có tên chứa preferred name
+            if (!TextUtils.isEmpty(this.m) && result != null) {
+                DecoderInfo codec = result.first;
+                boolean preferred = false;
+                for (Format trackFormat : trackFormats) {
+                    if (codecNameContains(trackFormat, this.m)) preferred = true;
                 }
-                if (!hasMatch) return null;  // Loại bỏ codec không khớp
+                if (!preferred) return null;  // Bỏ qua codec không ưa thích
             }
         }
         return result;
@@ -139,108 +265,312 @@ class VideoPlayerActivity$u extends ax.g1.n {  // extends DefaultRenderersFactor
 }
 ```
 
-> [!IMPORTANT]
-> **Preferred Codec Selection**: Cho phép user chọn codec cụ thể (ví dụ: `c2.android.avc.decoder` thay vì `OMX.qcom.video.decoder.avc`). Module lưu preference và filter codec list theo tên, loại bỏ codec không mong muốn. Đây là lý do app có thể "force" hardware decoder cụ thể để đạt hiệu suất tốt nhất trên từng thiết bị.
+> [!TIP]
+> **Preferred Codec**: User có thể chọn decoder cụ thể (ví dụ: `c2.qti.avc.decoder` thay vì `OMX.qcom.video.decoder.avc`). Trên một số thiết bị, Codec 2.0 (c2.) nhanh hơn OMX đáng kể.
 
-### 2.5. Track Selection & Subtitle Management
+---
 
-**File**: [f.java (Track Selection UI)](file:///d:/Projects/CaNhan/nextplayer/code_reference/video_player_module/java_source/com/alphainventor/filemanager/viewer/f.java)
+### 2.6. Async Media Loading — Không Block UI
 
-- Hỗ trợ chọn audio track và subtitle track
-- Sử dụng `TrackSelectionParameters` API mới của Media3
-- Auto-select subtitle đầu tiên khi có
-- Disable subtitle qua `setRendererDisabled(3, true)` và `setMaxVideoSize(-3)` (TEXT renderer index = 3)
+**File**: [VideoPlayerActivity$v.java](code_reference/video_player_module/java_source/com/alphainventor/filemanager/viewer/VideoPlayerActivity$v.java)
 
-### 2.6. Player State Machine & Error Recovery
-
-**File**: [VideoPlayerActivity$x.java (Player.Listener)](file:///d:/Projects/CaNhan/nextplayer/code_reference/video_player_module/java_source/com/alphainventor/filemanager/viewer/VideoPlayerActivity$x.java)
-
-| State | Hành vi |
-|-------|---------|
-| `STATE_READY (3)` | Ghi analytics, setup progress bar, auto-hide timer |
-| `STATE_BUFFERING (2)` | Hiển thị buffering indicator |
-| `STATE_ENDED (4)` | Auto-play next hoặc hiển thị completion |
-| `onTracksChanged` | Detect codec không khả dụng → log + report |
-| `onPlayerError` | Check recoverable error → retry hoặc next video |
-
-**Codec Error Handling:**
-```java
-// Khi track không available:
-// - Video codec not available → log + analytics event
-// - Audio codec not available → log + analytics event
-// - Text track → auto-select nếu có embedded subtitle
+```
+Background Thread:                         Main Thread:
+──────────────────────────────────         ──────────────────────────────────
+r():  show loading spinner            →
+x():  buildMediaItem(index)           →    (UI still responsive)
+      convertContentUri → fileUri
+      detectSubtitle → subtitleUri
+      return MediaItem
+                                      →    y(mediaItem):
+                                           hide loading spinner
+                                           player.setMediaItem(mediaItem)
+                                           player.prepare()
+                                           player.play()   (if not paused)
 ```
 
-### 2.7. Adaptive Playback Speed UI
+**Task cancellation khi chuyển video:**
+```java
+// r3(): switch to new video
+if (this.G1 != null && isRunning(this.G1)) {
+    this.G1.cancel();  // Hủy task cũ
+}
+this.G1 = new VideoPlayerActivity$v(this, index, autoPlay);
+this.G1.execute();
+```
 
-**File**: [d.java](file:///d:/Projects/CaNhan/nextplayer/code_reference/video_player_module/java_source/com/alphainventor/filemanager/viewer/d.java)
+---
 
-Hỗ trợ 8 mức tốc độ: `0.25x, 0.5x, 0.75x, 1x, 1.25x, 1.5x, 1.75x, 2x`
+### 2.7. URI Pre-processing — Tránh Delay Khi Phát
 
-> [!NOTE]
-> Giá trị tốc độ lưu dưới dạng **IEEE 754 float raw bits** (int representation):
-> - `1065353216` = `1.0f`
-> - `1056964608` = `0.5f`
-> - `1073741824` = `2.0f`
+**Code trong `i2()`:**
 
-### 2.8. Gesture Controls (Seek, Volume, Brightness)
+```java
+private Uri processUri(Uri raw) {
+    if (MyFileProvider.isFileProviderUri(raw)) {
+        // content://com.cx.filemanager.provider/... → /storage/emulated/0/...
+        String realPath = MyFileProvider.getRealPath(raw);
+        if (!isAndroidDataPath(realPath)) {
+            return Uri.fromFile(new File(realPath));  // Convert sang file://
+        }
+    }
+    // Nếu không thể convert → giữ nguyên URI gốc
+    return raw;
+}
+```
 
-**File**: [VideoPlayerActivity$f.java (GestureDetector)](file:///d:/Projects/CaNhan/nextplayer/code_reference/video_player_module/java_source/com/alphainventor/filemanager/viewer/VideoPlayerActivity$f.java)
+> [!TIP]
+> Chuyển `content://` URI sang `file://` URI khi có thể. ExoPlayer đọc file local nhanh hơn qua `file://` vì không cần qua ContentResolver (không có binder IPC overhead).
+
+---
+
+### 2.8. Subtitle Lazy Detection — Cache Kết Quả
+
+```java
+private MediaItem buildMediaItem(int videoIndex) {
+    int realIndex = shuffledIndex(videoIndex);
+
+    // Lazy detect subtitle (chỉ một lần duy nhất)
+    if (this.autoDetectSubtitle && !this.subtitleDetected[realIndex]) {
+        if (this.subtitleUris[realIndex] == null) {
+            // Tìm file subtitle cùng tên trong cùng thư mục
+            this.subtitleUris[realIndex] = findSubtitleFile(this.videoUris[realIndex]);
+        }
+        this.subtitleDetected[realIndex] = true;  // Cache: đánh dấu đã detect
+    }
+
+    return buildMediaItemWithSubtitle(
+        this.videoUris[realIndex],
+        this.subtitleUris[realIndex]
+    );
+}
+```
+
+**Hàm `v2()` — tìm subtitle file:**
+```java
+private @Nullable Uri findSubtitleFile(Uri videoUri) {
+    String basePath = removeExtension(videoUri.getPath());
+    String[] subtitleExtensions = getSupportedSubtitleExtensions();
+    // ["srt", "ass", "ssa", "vtt", "sub", ...]
+
+    for (String ext : subtitleExtensions) {
+        File candidate = new File(basePath + "." + ext);
+        if (candidate.exists()) {
+            return Uri.fromFile(candidate);
+        }
+    }
+    return null;
+}
+```
+
+---
+
+### 2.9. Player State Restoration — Không Mất Vị Trí
+
+**State được save trong `s4()` trước khi player bị destroy:**
+```java
+private void savePlayerState() {
+    this.m1 = player.getPlayWhenReady();      // playing or paused?
+    this.n1 = player.getCurrentMediaItemIndex();  // index trong playlist
+    this.o1 = Math.max(0, player.getCurrentPosition());  // vị trí ms
+}
+```
+
+**Restore trong `r3()` khi switch video:**
+```java
+private void switchToVideo(int index, boolean autoPlay) {
+    // Huỷ task trước nếu đang chạy
+    if (currentTask != null && !currentTask.isCancelled()) {
+        currentTask.cancel();
+    }
+
+    // Tạo và chạy async task mới
+    currentTask = new LoadAndPlayTask(this, index, autoPlay);
+    currentTask.execute();
+}
+```
+
+**Restore trong `z()` của task khi cần resume:**
+```java
+protected void z() {
+    // Khôi phục vị trí đã lưu (if resuming same video)
+    player.setMediaItem(mediaItem);
+    player.prepare();
+    player.seekTo(savedIndex, savedPosition);  // seekTo(windowIndex, positionMs)
+    player.setPlayWhenReady(savedPlayWhenReady);
+    player.play();
+}
+```
+
+---
+
+### 2.10. Gesture Controls
 
 | Gesture | Hành động |
 |---------|----------|
-| Double-tap trái (< 1/3 width) | Seek backward |
-| Double-tap phải (> 2/3 width) | Seek forward |
+| Double-tap trái | Seek backward 10s |
+| Double-tap phải | Seek forward 10s |
 | Double-tap giữa | Play/Pause toggle |
-| Swipe ngang | Seek (40s mỗi 360dp) |
-| Swipe dọc trái | Brightness control |
-| Swipe dọc phải | Volume control |
-| Long press | Speed boost |
-| Pinch zoom | Scale/aspect ratio |
-
-**Seek calculation**: `seekPosition = currentPos + (deltaX * 40000 / 360)` — 40 giây cho mỗi 360dp swipe.
-
-### 2.9. Async Media Loading
-
-**File**: [VideoPlayerActivity$v.java (AsyncTask)](file:///d:/Projects/CaNhan/nextplayer/code_reference/video_player_module/java_source/com/alphainventor/filemanager/viewer/VideoPlayerActivity$v.java)
-
-- Media source được chuẩn bị trên background thread (AsyncTask)
-- Hiển thị loading indicator trong quá trình chuẩn bị
-- Player.prepare() và play() chạy trên main thread sau khi AsyncTask hoàn thành
-- Handle `IllegalStateException` gracefully
+| Swipe ngang | Seek (40s mỗi 360dp) + throttle 150ms |
+| Swipe dọc trái | Brightness |
+| Swipe dọc phải | Volume |
+| Long press | Speed boost (1.5x hoặc 2x) |
+| Pinch zoom | Scale/aspect ratio (ScaleGestureDetector) |
 
 ---
 
-## 3. So Sánh Với NextPlayer Hiện Tại
+### 2.11. Controller Auto-show Tuning
 
-| Thông số | Module Cũ (FileManager) | NextPlayer |
-|----------|------------------------|------------|
-| **LoadControl** | `setTargetBufferBytes(1)` — buffer tối thiểu | DefaultLoadControl mặc định |
-| **FFmpeg** | Dual-library (ex + fm), audio-only | Media3 FFmpeg extension |
-| **Codec Selection** | Custom filter theo tên codec | Mặc định Media3 |
-| **Wake Mode** | Phân biệt LOCAL vs NETWORK | Cần kiểm tra |
-| **Seek Increment** | 10s cố định | Configurable |
-| **Error Recovery** | Detailed codec logging + fallback | Cần kiểm tra |
-| **Gesture** | Full swipe seek/volume/brightness | Đã implement |
-| **Playback Speed** | 8 mức (0.25x-2x) | Đã implement |
-| **Surface** | SurfaceView (hardware compositing) | PlayerView mặc định |
+```java
+// Controller timeout theo chế độ
+if (!fullscreen) {
+    playerView.setControllerShowTimeoutMs(5000);  // 5s khi portrait
+} else {
+    playerView.setControllerShowTimeoutMs(3000);  // 3s khi fullscreen
+}
+
+// Tắt auto-show trong lúc seek để tránh flicker
+playerView.setControllerAutoShow(false);
+// ... seek operation ...
+playerView.setControllerAutoShow(true);
+```
 
 ---
 
-## 4. Kết Luận & Khuyến Nghị
+## 3. Bảng So Sánh Với NextPlayer
 
-### Những điểm tối ưu đáng học hỏi:
+| Kỹ thuật | Module Cũ (CX File Explorer) | NextPlayer Hiện Tại | Ưu tiên |
+|----------|------------------------------|---------------------|---------|
+| **SeekParameters NEXT/PREV_SYNC** | ✅ Theo hướng seek | ❓ Cần kiểm tra | 🔴 Cao |
+| **Seek Throttle 150ms** | ✅ Chống queue seek | ❓ Cần kiểm tra | 🔴 Cao |
+| **EXTENSION_RENDERER_MODE_ON** | ✅ FFmpeg extension ON | ✅ Đã có | 🟢 OK |
+| **WAKE_MODE_NETWORK cho LAN** | ✅ WifiLock khi stream | ❓ Cần kiểm tra | 🟡 Trung |
+| **content:// → file:// convert** | ✅ Tránh binder IPC | ❓ Cần kiểm tra | 🟡 Trung |
+| **Preferred Codec (by name)** | ✅ User chọn codec | ❓ Cần kiểm tra | 🟡 Trung |
+| **Async media load + task cancel** | ✅ Background loading | ✅ Đã có | 🟢 OK |
+| **Subtitle lazy detect + cache** | ✅ `f0[]` boolean cache | ❓ Cần kiểm tra | 🟡 Trung |
+| **SeekBack/Forward 10s** | ✅ 10s cố định | ✅ Configurable | 🟢 OK |
+| **Player state restore** | ✅ Lưu pos + playWhenReady | ✅ Đã có | 🟢 OK |
 
-1. **Buffer tối thiểu cho local playback** — `setTargetBufferBytes(1)` giúp khởi động nhanh và tiết kiệm RAM
-2. **Preferred codec selection** — Cho phép chọn hardware decoder cụ thể, hữu ích trên thiết bị có nhiều decoder
-3. **Dual FFmpeg library** — Fallback mechanism cho native decoder, tăng tính ổn định
-4. **Wake Mode phân biệt** — Tránh giữ wake lock không cần thiết cho local files
-5. **Async media preparation** — Không block UI thread khi chuẩn bị media source
-6. **Detailed codec error logging** — Analytics và logging chi tiết khi codec không khả dụng
+---
 
-### Điểm lưu ý:
+## 4. Action Plan — Áp Dụng Cho NextPlayer
 
-> [!WARNING]
-> - Code rất obfuscated, một số mapping có thể không chính xác 100%
-> - `setTargetBufferBytes(1)` có thể gây stutter trên video bitrate cao hoặc device yếu
-> - Dual FFmpeg library tăng APK size nhưng cải thiện compatibility
+### 🔴 Ưu Tiên Cao (ảnh hưởng trực tiếp đến seek speed)
+
+#### A. Implement Directional SeekParameters
+
+Tìm nơi NextPlayer gọi `seekTo()` và thêm SeekParameters theo hướng:
+
+```kotlin
+// Trong PlayerViewModel hoặc PlayerRepository
+fun seekTo(positionMs: Long, seekingForward: Boolean) {
+    val seekParams = if (seekingForward) {
+        SeekParameters.NEXT_SYNC
+    } else {
+        SeekParameters.PREVIOUS_SYNC
+    }
+    player.setSeekParameters(seekParams)
+    player.seekTo(positionMs)
+    player.setSeekParameters(SeekParameters.DEFAULT)
+}
+```
+
+#### B. Implement Seek Throttling
+
+```kotlin
+// Trong SeekController hoặc PlayerControls
+private var lastSeekTime = 0L
+private var lastSeekDirection = true
+private var pendingSeekPosition = -1L
+private val SEEK_THROTTLE_MS = 150L
+
+fun onSeekBarChanged(position: Long, isForward: Boolean, updateLabel: Boolean) {
+    if (updateLabel) updateSeekLabel(position)
+
+    pendingSeekPosition = position
+    val directionChanged = (isForward != lastSeekDirection)
+    lastSeekDirection = isForward
+
+    val now = SystemClock.elapsedRealtime()
+    if (directionChanged || (now - lastSeekTime) >= SEEK_THROTTLE_MS) {
+        executeSeek(position, isForward)
+        lastSeekTime = now
+    }
+}
+```
+
+### 🟡 Ưu Tiên Trung Bình
+
+#### C. Wake Mode cho Network/LAN
+
+```kotlin
+// Khi mở file
+val wakeMode = if (uri.scheme == "http" || uri.scheme == "https" || isLanFile(uri)) {
+    C.WAKE_MODE_NETWORK
+} else {
+    C.WAKE_MODE_LOCAL
+}
+player.setWakeMode(wakeMode)
+```
+
+#### D. content:// → file:// Conversion
+
+```kotlin
+// Trong MediaSourceFactory hoặc PlayerRepository
+fun resolveUri(context: Context, rawUri: Uri): Uri {
+    if (rawUri.scheme == "content") {
+        val realPath = getRealPathFromUri(context, rawUri)
+        if (realPath != null && !realPath.startsWith("/Android/data/")) {
+            return Uri.fromFile(File(realPath))
+        }
+    }
+    return rawUri
+}
+```
+
+#### E. Preferred Codec Setting (nâng cao)
+
+Cho phép user chọn decoder cụ thể trong Settings → Tạo custom `DefaultTrackSelector` lọc theo tên codec.
+
+---
+
+## 5. Những Điểm Đáng Chú Ý Khác
+
+### 5.1. Lý do seek nhanh trên LAN không phải chỉ do buffering
+
+App cũ seek nhanh trên LAN **không phải** vì buffer lớn hơn, mà vì:
+1. **WifiLock** giữ kết nối WiFi ổn định, không có packet loss do power saving
+2. **PREVIOUS/NEXT_SYNC** seek chỉ cần đọc 1 keyframe thay vì nhiều frames
+3. **Throttle** ngăn nhiều seek request tranh nhau gây network congestion
+
+### 5.2. DefaultLoadControl — Không tùy chỉnh
+
+Module cũ **không** customize `DefaultLoadControl` buffer. Dùng default:
+- `minBufferMs = 50_000` (50s)
+- `maxBufferMs = 50_000` (50s)
+- `bufferForPlaybackMs = 2_500` (2.5s để bắt đầu phát)
+- `bufferForPlaybackAfterRebufferMs = 5_000`
+
+> Phân tích cũ ghi `setTargetBufferBytes(1)` là **không chính xác**. `v3_2.o(1)` là `setExtensionRendererMode(1)` trên RenderersFactory, không phải LoadControl.
+
+### 5.3. Error State Machine (S1/T1 flags)
+
+```
+T1 = false → Normal playback
+T1 = true, S1 = false → Codec error xảy ra, thử tắt SW decoder
+T1 = true, S1 = true  → Cả HW và SW đều fail → disable codec hoàn toàn
+```
+
+---
+
+## 6. Tóm Tắt Ngắn
+
+> **Tại sao app cũ load nhanh và seek mượt?**
+>
+> 1. **SeekParameters NEXT/PREV_SYNC** → Chỉ decode keyframe, không cần decode toàn bộ GOP
+> 2. **Seek throttle 150ms** → Không flood player với seek requests khi kéo nhanh
+> 3. **WifiLock (WAKE_MODE_NETWORK) cho LAN** → WiFi không bị power save, packet loss thấp
+> 4. **content:// → file:// URI** → Không có ContentResolver IPC overhead
+> 5. **FFmpeg extension cho audio** → Hỗ trợ AC3/DTS/TrueHD, video vẫn HW-decoded
+> 6. **Async media preparation** → UI không bị block khi load file mới

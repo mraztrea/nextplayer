@@ -11,6 +11,7 @@ enum class CustomCommands(val customAction: String) {
     SET_SKIP_SILENCE_ENABLED(customAction = "SET_SKIP_SILENCE_ENABLED"),
     GET_SKIP_SILENCE_ENABLED(customAction = "GET_SKIP_SILENCE_ENABLED"),
     SET_IS_SCRUBBING_MODE_ENABLED(customAction = "SET_IS_SCRUBBING_MODE_ENABLED"),
+    SEEK_TO_DIRECTIONAL(customAction = "SEEK_TO_DIRECTIONAL"),
     GET_SUBTITLE_DELAY(customAction = "GET_SUBTITLE_DELAY"),
     SET_SUBTITLE_DELAY(customAction = "SET_SUBTITLE_DELAY"),
     GET_SUBTITLE_SPEED(customAction = "GET_SUBTITLE_SPEED"),
@@ -35,6 +36,8 @@ enum class CustomCommands(val customAction: String) {
         const val SUBTITLE_TRACK_URI_KEY = "subtitle_track_uri"
         const val SKIP_SILENCE_ENABLED_KEY = "skip_silence_enabled"
         const val IS_SCRUBBING_MODE_ENABLED_KEY = "is_scrubbing_mode_enabled"
+        const val SEEK_POSITION_MS_KEY = "seek_position_ms"
+        const val SEEK_IS_FORWARD_KEY = "seek_is_forward"
         const val SUBTITLE_DELAY_KEY = "subtitle_delay"
         const val SUBTITLE_SPEED_KEY = "subtitle_speed"
         const val LOUDNESS_GAIN_KEY = "loudness_gain"
@@ -54,6 +57,14 @@ suspend fun MediaController.setSkipSilenceEnabled(enabled: Boolean) {
         putBoolean(CustomCommands.SKIP_SILENCE_ENABLED_KEY, enabled)
     }
     sendCustomCommand(CustomCommands.SET_SKIP_SILENCE_ENABLED.sessionCommand, args).await()
+}
+
+fun MediaController.sendSeekToDirectional(positionMs: Long, isForward: Boolean) {
+    val args = Bundle().apply {
+        putLong(CustomCommands.SEEK_POSITION_MS_KEY, positionMs)
+        putBoolean(CustomCommands.SEEK_IS_FORWARD_KEY, isForward)
+    }
+    sendCustomCommand(CustomCommands.SEEK_TO_DIRECTIONAL.sessionCommand, args)
 }
 
 fun MediaController.setMediaControllerIsScrubbingModeEnabled(enabled: Boolean) {

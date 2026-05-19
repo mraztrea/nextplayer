@@ -24,6 +24,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
@@ -500,6 +501,20 @@ class PlayerService : MediaSessionService() {
                             putBoolean(CustomCommands.SKIP_SILENCE_ENABLED_KEY, enabled)
                         },
                     )
+                }
+
+                CustomCommands.SEEK_TO_DIRECTIONAL -> {
+                    val positionMs = args.getLong(CustomCommands.SEEK_POSITION_MS_KEY)
+                    val isForward = args.getBoolean(CustomCommands.SEEK_IS_FORWARD_KEY, true)
+                    val exoPlayer = mediaSession?.player as? ExoPlayer
+                    exoPlayer?.let {
+                        it.setSeekParameters(
+                            if (isForward) SeekParameters.NEXT_SYNC else SeekParameters.PREVIOUS_SYNC,
+                        )
+                        it.seekTo(positionMs)
+                        it.setSeekParameters(SeekParameters.DEFAULT)
+                    }
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
                 }
 
                 CustomCommands.SET_IS_SCRUBBING_MODE_ENABLED -> {

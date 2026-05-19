@@ -7,8 +7,10 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.session.MediaController
 import dev.anilbeesetti.nextplayer.core.common.Logger
+import dev.anilbeesetti.nextplayer.feature.player.service.sendSeekToDirectional
 import dev.anilbeesetti.nextplayer.feature.player.service.setMediaControllerIsScrubbingModeEnabled
 
 /**
@@ -89,5 +91,22 @@ fun Player.setIsScrubbingModeEnabled(enabled: Boolean) {
     when (this) {
         is MediaController -> this.setMediaControllerIsScrubbingModeEnabled(enabled)
         is ExoPlayer -> this.isScrubbingModeEnabled = enabled
+    }
+}
+
+/**
+ * Seek đến vị trí với SeekParameters định hướng (NEXT_SYNC hoặc PREVIOUS_SYNC).
+ * Nhanh hơn DEFAULT seek vì chỉ decode tới keyframe gần nhất theo hướng di chuyển.
+ */
+@OptIn(UnstableApi::class)
+fun Player.seekToWithDirection(positionMs: Long, isForward: Boolean) {
+    when (this) {
+        is ExoPlayer -> {
+            setSeekParameters(if (isForward) SeekParameters.NEXT_SYNC else SeekParameters.PREVIOUS_SYNC)
+            seekTo(positionMs)
+            setSeekParameters(SeekParameters.DEFAULT)
+        }
+        is MediaController -> sendSeekToDirectional(positionMs, isForward)
+        else -> seekTo(positionMs)
     }
 }

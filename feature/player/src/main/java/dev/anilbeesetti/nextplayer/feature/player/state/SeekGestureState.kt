@@ -1,5 +1,6 @@
 package dev.anilbeesetti.nextplayer.feature.player.state
 
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -13,6 +14,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.feature.player.extensions.formatted
+import dev.anilbeesetti.nextplayer.feature.player.extensions.seekToWithDirection
 import dev.anilbeesetti.nextplayer.feature.player.extensions.setIsScrubbingModeEnabled
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
@@ -50,11 +52,21 @@ class SeekGestureState(
         private set
 
     private var seekStartX = 0f
+    private var lastSeekTime = 0L
+    private var lastSeekDirection: Boolean? = null
+    private var previousOnSeekValue: Long? = null
+
+    companion object {
+        private const val SEEK_THROTTLE_MS = 150L
+    }
 
     fun onSeek(value: Long) {
         if (!isSeeking) {
             isSeeking = true
             seekStartPosition = player.currentPosition
+            previousOnSeekValue = seekStartPosition
+            lastSeekTime = 0L
+            lastSeekDirection = null
             player.setIsScrubbingModeEnabled(true)
         }
 
@@ -63,10 +75,18 @@ class SeekGestureState(
             maximumValue = player.duration - seekStartPosition!!,
         )
 
-        if (value > player.currentPosition) {
-            player.seekTo(value.coerceAtMost(player.duration))
-        } else {
-            player.seekTo(value.coerceAtLeast(0L))
+        val isForward = value >= (previousOnSeekValue ?: seekStartPosition!!)
+        val directionChanged = isForward != lastSeekDirection
+        lastSeekDirection = isForward
+        previousOnSeekValue = value
+
+        val now = SystemClock.elapsedRealtime()
+        if (directionChanged || (now - lastSeekTime) >= SEEK_THROTTLE_MS) {
+            player.seekToWithDirection(
+                positionMs = value.coerceIn(0L, player.duration),
+                isForward = isForward,
+            )
+            lastSeekTime = now
         }
     }
 
@@ -83,6 +103,8 @@ class SeekGestureState(
         isSeeking = true
         seekStartX = offset.x
         seekStartPosition = player.currentPosition
+        lastSeekTime = 0L
+        lastSeekDirection = null
 
         player.setIsScrubbingModeEnabled(true)
     }
@@ -102,7 +124,18 @@ class SeekGestureState(
             maximumValue = player.duration - seekStartPosition!!,
         )
 
-        player.seekTo(newPosition.coerceIn(0L, player.duration))
+        val isForward = dragAmount > 0
+        val directionChanged = isForward != lastSeekDirection
+        lastSeekDirection = isForward
+
+        val now = SystemClock.elapsedRealtime()
+        if (directionChanged || (now - lastSeekTime) >= SEEK_THROTTLE_MS) {
+            player.seekToWithDirection(
+                positionMs = newPosition.coerceIn(0L, player.duration),
+                isForward = isForward,
+            )
+            lastSeekTime = now
+        }
     }
 
     fun onDragEnd() {
@@ -114,8 +147,10 @@ class SeekGestureState(
         isSeeking = false
         seekStartPosition = null
         seekAmount = null
-
         seekStartX = 0f
+        lastSeekTime = 0L
+        lastSeekDirection = null
+        previousOnSeekValue = null
     }
 }
 
