@@ -45,3 +45,12 @@ rtk .\gradlew assembleDebug
 - Thumbnail cache được tái sử dụng khi mở lại cùng thư mục.
 - Player phát video LAN không yêu cầu người dùng sao chép file thủ công.
 - Bookmark trùng không tạo duplicate.
+
+## SMB Setup & Troubleshooting
+
+- `host` là IP hoặc hostname của máy SMB, không nhập prefix `smb://`.
+- `share/root` là tên share, ví dụ `Videos`; thư mục con bên trong share nhập ở `Thư mục mặc định`.
+- Nếu dùng guest access, để trống username/password.
+- Lỗi đăng nhập thường do sai username/password hoặc SMB server không cho guest.
+- Lỗi không kết nối được thường do thiết bị Android và server không cùng mạng, firewall chặn cổng SMB, hoặc hostname không resolve được; thử dùng IP trực tiếp.
+- Lỗi thư mục không tồn tại thường do nhập sai `share/root` hoặc path con đã bị đổi tên.

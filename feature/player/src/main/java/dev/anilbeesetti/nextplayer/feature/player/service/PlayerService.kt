@@ -27,6 +27,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.CommandButton
 import androidx.media3.session.CommandButton.ICON_UNDEFINED
@@ -71,6 +72,7 @@ import dev.anilbeesetti.nextplayer.feature.player.extensions.subtitleTrackIndex
 import dev.anilbeesetti.nextplayer.feature.player.extensions.switchTrack
 import dev.anilbeesetti.nextplayer.feature.player.extensions.uriToSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.videoZoom
+import dev.anilbeesetti.nextplayer.feature.player.lan.SmbAwareDataSourceFactory
 import dev.anilbeesetti.nextplayer.core.subtitle.audio.SubtitleAudioProcessor
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleDelayMilliseconds
@@ -114,6 +116,9 @@ class PlayerService : MediaSessionService() {
 
     @Inject
     lateinit var subtitleEngine: SubtitleEngine
+
+    @Inject
+    lateinit var smbAwareDataSourceFactory: SmbAwareDataSourceFactory
 
     private val playerPreferences: PlayerPreferences
         get() = preferencesRepository.playerPreferences.value
@@ -631,6 +636,7 @@ class PlayerService : MediaSessionService() {
             .setRenderersFactory(renderersFactory)
             .setTrackSelector(trackSelector)
             .setLoadControl(loadControl)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(applicationContext).setDataSourceFactory(smbAwareDataSourceFactory))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)

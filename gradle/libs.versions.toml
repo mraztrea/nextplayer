@@ -34,7 +34,9 @@ reorderable = "3.0.0"
 room = "2.8.4"
 nextlib = "1.9.3-0.12.0"
 universalChardet = "2.5.0"
-androidxSecurity = "1.1.0-alpha06"
+androidxSecurity = "1.1.0"
+robolectric = "4.14.1"
+smbj = "0.14.0"
 
 
 [libraries]
@@ -91,6 +93,8 @@ kotlin-metadata-jvm = { group = "org.jetbrains.kotlin", name = "kotlin-metadata-
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "androidxSecurity" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
 
 [plugins]
 aboutLibraries = { id = "com.mikepenz.aboutlibraries.plugin.android", version.ref = "aboutlibraries" }

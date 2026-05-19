@@ -40,6 +40,7 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:media"))
     implementation(project(":core:model"))
+    implementation(project(":core:lan"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -66,6 +67,7 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
 
     testImplementation(libs.junit4)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.espresso.core)

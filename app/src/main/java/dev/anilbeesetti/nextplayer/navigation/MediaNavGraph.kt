@@ -10,7 +10,13 @@ import dev.anilbeesetti.nextplayer.core.model.PlaybackSourceType
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.utils.PlayerApi
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.MediaPickerRoute
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.lanBookmarkScreen
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.lanFolderBrowserScreen
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.lanServerManagerScreen
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.mediaPickerScreen
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToLanBookmarks
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToLanFolderBrowser
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToLanServerManager
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToMediaPickerScreen
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToSearch
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.searchScreen
@@ -55,6 +61,40 @@ fun NavGraphBuilder.mediaNavGraph(
             onFolderClick = navController::navigateToMediaPickerScreen,
             onSettingsClick = navController::navigateToSettings,
             onSearchClick = navController::navigateToSearch,
+            onLanClick = navController::navigateToLanServerManager,
+        )
+
+        lanServerManagerScreen(
+            onNavigateUp = navController::navigateUp,
+            onOpenServer = navController::navigateToLanFolderBrowser,
+            onBookmarksClick = navController::navigateToLanBookmarks,
+        )
+
+        lanBookmarkScreen(
+            onNavigateUp = navController::navigateUp,
+            onOpenBookmark = navController::navigateToLanFolderBrowser,
+        )
+
+        lanFolderBrowserScreen(
+            onNavigateUp = navController::navigateUp,
+            onFolderClick = navController::navigateToLanFolderBrowser,
+            onPlayVideo = { uri, siblingUris ->
+                val intent = Intent(context, PlayerActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    data = uri
+                    siblingUris.takeIf { it.isNotEmpty() }?.let { uris ->
+                        putStringArrayListExtra(
+                            PlayerApi.API_PLAYBACK_CONTEXT_URIS,
+                            ArrayList(uris.map(Uri::toString)),
+                        )
+                        putExtra(
+                            PlayerApi.API_PLAYBACK_SOURCE_TYPE,
+                            PlaybackSourceType.SOURCE_VISIBLE_ORDER.name,
+                        )
+                    }
+                }
+                context.startActivity(intent)
+            },
         )
 
         searchScreen(

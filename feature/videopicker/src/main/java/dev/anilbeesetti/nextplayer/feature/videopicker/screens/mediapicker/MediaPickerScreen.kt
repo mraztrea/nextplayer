@@ -112,6 +112,7 @@ fun MediaPickerRoute(
     onFolderClick: (folderPath: String) -> Unit,
     onSettingsClick: () -> Unit,
     onSearchClick: () -> Unit,
+    onLanClick: () -> Unit,
     onNavigateUp: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -129,6 +130,7 @@ fun MediaPickerRoute(
         onFolderClick = onFolderClick,
         onSettingsClick = onSettingsClick,
         onSearchClick = onSearchClick,
+        onLanClick = onLanClick,
         onEvent = viewModel::onEvent,
     )
 }
@@ -143,6 +145,7 @@ internal fun MediaPickerScreen(
     onFolderClick: (String) -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
+    onLanClick: () -> Unit = {},
     onEvent: (MediaPickerUiEvent) -> Unit = {},
 ) {
     val selectionManager = rememberSelectionManager()
@@ -308,6 +311,21 @@ internal fun MediaPickerScreen(
                     }
                 },
             ) {
+                FloatingActionButtonMenuItem(
+                    onClick = {
+                        isFabExpanded = false
+                        onLanClick()
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = NextIcons.Folder,
+                            contentDescription = null,
+                        )
+                    },
+                    text = {
+                        Text(text = stringResource(id = R.string.lan_video))
+                    },
+                )
                 FloatingActionButtonMenuItem(
                     onClick = {
                         isFabExpanded = false

@@ -15,26 +15,26 @@ Android multi-module repository paths are relative to repository root. Use Power
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Add `smbj = "0.14.0"` and `androidxSecurityCrypto = "1.1.0"` versions plus library aliases in `gradle/libs.versions.toml`
-- [ ] T002 Register the new `:core:lan` module in `settings.gradle.kts`
-- [ ] T003 Create the Android library build configuration for LAN access in `core/lan/build.gradle.kts`
-- [ ] T004 Create the module manifest with namespace-safe defaults in `core/lan/src/main/AndroidManifest.xml`
-- [ ] T005 Add `:core:lan` dependencies to data, media, player, and videopicker modules in `core/data/build.gradle.kts`, `core/media/build.gradle.kts`, `feature/player/build.gradle.kts`, and `feature/videopicker/build.gradle.kts`
-- [ ] T006 Add network access permissions needed for SMB LAN access in `app/src/main/AndroidManifest.xml`
-- [ ] T007 [P] Add LAN module ProGuard/R8 keep notes for SMBJ classes in `core/lan/consumer-rules.pro`
-- [ ] T008 [P] Add LAN feature string resource placeholders in `feature/videopicker/src/main/res/values/strings.xml`
-- [ ] T009 [P] Create a workflow note skeleton for implementation closeout in `memory_bank/wf_20260519_lan_video_playback.md`
+- [X] T001 Add `smbj = "0.14.0"` and `androidxSecurityCrypto = "1.1.0"` versions plus library aliases in `gradle/libs.versions.toml`
+- [X] T002 Register the new `:core:lan` module in `settings.gradle.kts`
+- [X] T003 Create the Android library build configuration for LAN access in `core/lan/build.gradle.kts`
+- [X] T004 Create the module manifest with namespace-safe defaults in `core/lan/src/main/AndroidManifest.xml`
+- [X] T005 Add `:core:lan` dependencies to data, media, player, and videopicker modules in `core/data/build.gradle.kts`, `core/media/build.gradle.kts`, `feature/player/build.gradle.kts`, and `feature/videopicker/build.gradle.kts`
+- [X] T006 Add network access permissions needed for SMB LAN access in `app/src/main/AndroidManifest.xml`
+- [X] T007 [P] Add LAN module ProGuard/R8 keep notes for SMBJ classes in `core/lan/consumer-rules.pro`
+- [X] T008 [P] Add LAN feature string resource placeholders in `core/ui/src/main/res/values/strings.xml`
+- [X] T009 [P] Create a workflow note skeleton for implementation closeout in `memory_bank/wf_20260519_lan_video_playback.md`
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T010 [P] Create LAN domain result and error types in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanResult.kt`
-- [ ] T011 [P] Create `LanServerProfile` model in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanServerProfile.kt`
-- [ ] T012 [P] Create `LanFolder` model in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanFolder.kt`
-- [ ] T013 [P] Create `LanMediaItem` model in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanMediaItem.kt`
-- [ ] T014 [P] Create `LanFolderBookmark` model in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanFolderBookmark.kt`
-- [ ] T015 [P] Create `LanThumbnailCacheEntry` model in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanThumbnailCacheEntry.kt`
-- [ ] T016 Create the LAN repository contracts in `core/data/src/main/java/dev/anilbeesetti/nextplayer/core/data/repository/LanRepository.kt`
-- [ ] T017 [P] Create reusable LAN test fixtures in `core/lan/src/test/java/dev/anilbeesetti/nextplayer/core/lan/testing/LanFixtures.kt`
+- [X] T010 [P] Create LAN domain result and error types in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanResult.kt`
+- [X] T011 [P] Create `LanServerProfile` model in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanServerProfile.kt`
+- [X] T012 [P] Create `LanFolder` model in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanFolder.kt`
+- [X] T013 [P] Create `LanMediaItem` model in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanMediaItem.kt`
+- [X] T014 [P] Create `LanFolderBookmark` model in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanFolderBookmark.kt`
+- [X] T015 [P] Create `LanThumbnailCacheEntry` model in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanThumbnailCacheEntry.kt`
+- [X] T016 Create the LAN repository contracts in `core/data/src/main/java/dev/anilbeesetti/nextplayer/core/data/repository/LanRepository.kt`
+- [X] T017 [P] Create reusable LAN test fixtures in `core/lan/src/test/java/dev/anilbeesetti/nextplayer/core/lan/testing/LanFixtures.kt`
 
 ## Phase 3: User Story 1 - Quản lý server LAN đã lưu (Priority: P1)
 
@@ -44,25 +44,25 @@ Android multi-module repository paths are relative to repository root. Use Power
 
 ### Tests for User Story 1
 
-- [ ] T018 [P] [US1] Add DAO persistence tests for server profile CRUD in `core/database/src/androidTest/java/dev/anilbeesetti/nextplayer/core/database/dao/LanServerDaoTest.kt`
-- [ ] T019 [P] [US1] Add credential store tests for save, update, clear, and masked state in `core/lan/src/test/java/dev/anilbeesetti/nextplayer/core/lan/security/EncryptedLanCredentialStoreTest.kt`
-- [ ] T020 [P] [US1] Add repository tests for server validation and duplicate prevention in `core/data/src/test/java/dev/anilbeesetti/nextplayer/core/data/repository/LocalLanServerRepositoryTest.kt`
-- [ ] T021 [P] [US1] Add ViewModel tests for add, edit, delete, and validation errors in `feature/videopicker/src/test/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanServerManagerViewModelTest.kt`
+- [X] T018 [P] [US1] Add DAO persistence tests for server profile CRUD in `core/database/src/androidTest/java/dev/anilbeesetti/nextplayer/core/database/dao/LanServerDaoTest.kt`
+- [X] T019 [P] [US1] Add credential store tests for save, update, clear, and masked state in `core/lan/src/test/java/dev/anilbeesetti/nextplayer/core/lan/security/EncryptedLanCredentialStoreTest.kt`
+- [X] T020 [P] [US1] Add repository tests for server validation and duplicate prevention in `core/data/src/test/java/dev/anilbeesetti/nextplayer/core/data/repository/LocalLanServerRepositoryTest.kt`
+- [X] T021 [P] [US1] Add ViewModel tests for add, edit, delete, and validation errors in `feature/videopicker/src/test/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanServerManagerViewModelTest.kt`
 
 ### Implementation for User Story 1
 
-- [ ] T022 [P] [US1] Create `LanServerEntity` in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/entities/LanServerEntity.kt`
-- [ ] T023 [P] [US1] Create `LanServerDao` in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/dao/LanServerDao.kt`
-- [ ] T024 [US1] Register LAN server table and migration in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/MediaDatabase.kt`
-- [ ] T025 [P] [US1] Create credential store contract and AndroidX Security Crypto implementation in `core/lan/src/main/java/dev/anilbeesetti/nextplayer/core/lan/security/LanCredentialStore.kt`
-- [ ] T026 [US1] Implement server profile repository in `core/data/src/main/java/dev/anilbeesetti/nextplayer/core/data/repository/LocalLanServerRepository.kt`
-- [ ] T027 [US1] Bind LAN repositories and credential store with Hilt in `core/data/src/main/java/dev/anilbeesetti/nextplayer/core/data/DataModule.kt`
-- [ ] T028 [P] [US1] Create server management use cases in `core/domain/src/main/java/dev/anilbeesetti/nextplayer/core/domain/lan/ManageLanServersUseCases.kt`
-- [ ] T029 [US1] Implement server manager state and actions in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanServerManagerViewModel.kt`
-- [ ] T030 [US1] Build server list and form UI with masked password behavior in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanServerManagerScreen.kt`
-- [ ] T031 [US1] Add Vietnamese labels and validation messages in `feature/videopicker/src/main/res/values/strings.xml`
-- [ ] T032 [US1] Add LAN server manager navigation route in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/navigation/LanNavigation.kt`
-- [ ] T033 [US1] Add LAN entry point from the media picker surface in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/screens/mediapicker/MediaPickerScreen.kt`
+- [X] T022 [P] [US1] Create `LanServerEntity` in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/entities/LanServerEntity.kt`
+- [X] T023 [P] [US1] Create `LanServerDao` in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/dao/LanServerDao.kt`
+- [X] T024 [US1] Register LAN server table and migration in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/MediaDatabase.kt`
+- [X] T025 [P] [US1] Create credential store contract and AndroidX Security Crypto implementation in `core/lan/src/main/java/dev/anilbeesetti/nextplayer/core/lan/security/LanCredentialStore.kt`
+- [X] T026 [US1] Implement server profile repository in `core/data/src/main/java/dev/anilbeesetti/nextplayer/core/data/repository/LocalLanServerRepository.kt`
+- [X] T027 [US1] Bind LAN repositories and credential store with Hilt in `core/data/src/main/java/dev/anilbeesetti/nextplayer/core/data/DataModule.kt`
+- [X] T028 [P] [US1] Create server management use cases in `core/domain/src/main/java/dev/anilbeesetti/nextplayer/core/domain/lan/ManageLanServersUseCases.kt`
+- [X] T029 [US1] Implement server manager state and actions in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanServerManagerViewModel.kt`
+- [X] T030 [US1] Build server list and form UI with masked password behavior in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanServerManagerScreen.kt`
+- [X] T031 [US1] Add Vietnamese labels and validation messages in `core/ui/src/main/res/values/strings.xml`
+- [X] T032 [US1] Add LAN server manager navigation route in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/navigation/LanNavigation.kt`
+- [X] T033 [US1] Add LAN entry point from the media picker surface in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/screens/mediapicker/MediaPickerScreen.kt`
 
 ## Phase 4: User Story 2 - Duyệt thư mục và phát video LAN như local (Priority: P1)
 
@@ -72,28 +72,28 @@ Android multi-module repository paths are relative to repository root. Use Power
 
 ### Tests for User Story 2
 
-- [ ] T034 [P] [US2] Add SMB client contract tests for list folder, auth error, offline error, and permission error in `core/lan/src/test/java/dev/anilbeesetti/nextplayer/core/lan/smb/SmbLanClientTest.kt`
-- [ ] T035 [P] [US2] Add folder browsing use case tests for root, child path, empty folder, and non-video filtering in `core/domain/src/test/java/dev/anilbeesetti/nextplayer/core/domain/lan/BrowseLanFolderUseCaseTest.kt`
-- [ ] T036 [P] [US2] Add thumbnail cache tests for lazy load, cache hit, cache invalidation, and failure placeholder in `core/media/src/test/java/dev/anilbeesetti/nextplayer/core/media/LanThumbnailCacheTest.kt`
-- [ ] T037 [P] [US2] Add player SMB data source tests for open, read, seek, and read interruption in `feature/player/src/test/java/dev/anilbeesetti/nextplayer/feature/player/lan/SmbMediaDataSourceTest.kt`
-- [ ] T038 [P] [US2] Add LAN folder browser ViewModel tests for loading, loaded, empty, and error states in `feature/videopicker/src/test/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanFolderBrowserViewModelTest.kt`
+- [X] T034 [P] [US2] Add SMB client contract tests for list folder, auth error, offline error, and permission error in `core/lan/src/test/java/dev/anilbeesetti/nextplayer/core/lan/smb/SmbLanClientTest.kt`
+- [X] T035 [P] [US2] Add folder browsing use case tests for root, child path, empty folder, and non-video filtering in `core/domain/src/test/java/dev/anilbeesetti/nextplayer/core/domain/lan/BrowseLanFolderUseCaseTest.kt`
+- [X] T036 [P] [US2] Add thumbnail cache tests for lazy load, cache hit, cache invalidation, and failure placeholder in `core/media/src/test/java/dev/anilbeesetti/nextplayer/core/media/LanThumbnailCacheTest.kt`
+- [X] T037 [P] [US2] Add player SMB data source tests for open, read, seek, and read interruption in `feature/player/src/test/java/dev/anilbeesetti/nextplayer/feature/player/lan/SmbMediaDataSourceTest.kt`
+- [X] T038 [P] [US2] Add LAN folder browser ViewModel tests for loading, loaded, empty, and error states in `feature/videopicker/src/test/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanFolderBrowserViewModelTest.kt`
 
 ### Implementation for User Story 2
 
-- [ ] T039 [P] [US2] Implement SMBJ-backed client adapter in `core/lan/src/main/java/dev/anilbeesetti/nextplayer/core/lan/smb/SmbLanClient.kt`
-- [ ] T040 [US2] Implement folder listing and typed error mapping in `core/data/src/main/java/dev/anilbeesetti/nextplayer/core/data/repository/LocalLanFolderRepository.kt`
-- [ ] T041 [P] [US2] Create folder browse and refresh use cases in `core/domain/src/main/java/dev/anilbeesetti/nextplayer/core/domain/lan/BrowseLanFolderUseCase.kt`
-- [ ] T042 [US2] Implement LAN folder browser state and actions in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanFolderBrowserViewModel.kt`
-- [ ] T043 [US2] Build folder/video list UI with loading, empty, and error states in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanFolderBrowserScreen.kt`
-- [ ] T044 [US2] Reuse local video row styling for LAN media items in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/composables/LanVideoItem.kt`
-- [ ] T045 [P] [US2] Create thumbnail cache entity and DAO in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/entities/LanThumbnailCacheEntity.kt` and `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/dao/LanThumbnailCacheDao.kt`
-- [ ] T046 [US2] Implement lazy thumbnail cache service in `core/media/src/main/java/dev/anilbeesetti/nextplayer/core/media/LanThumbnailCache.kt`
+- [X] T039 [P] [US2] Implement SMBJ-backed client adapter in `core/lan/src/main/java/dev/anilbeesetti/nextplayer/core/lan/smb/SmbLanClient.kt`
+- [X] T040 [US2] Implement folder listing and typed error mapping in `core/data/src/main/java/dev/anilbeesetti/nextplayer/core/data/repository/LocalLanFolderRepository.kt`
+- [X] T041 [P] [US2] Create folder browse and refresh use cases in `core/domain/src/main/java/dev/anilbeesetti/nextplayer/core/domain/lan/BrowseLanFolderUseCase.kt`
+- [X] T042 [US2] Implement LAN folder browser state and actions in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanFolderBrowserViewModel.kt`
+- [X] T043 [US2] Build folder/video list UI with loading, empty, and error states in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanFolderBrowserScreen.kt`
+- [X] T044 [US2] Reuse local video row styling for LAN media items in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/composables/LanVideoItem.kt`
+- [X] T045 [P] [US2] Create thumbnail cache entity and DAO in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/entities/LanThumbnailCacheEntity.kt` and `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/dao/LanThumbnailCacheDao.kt`
+- [X] T046 [US2] Implement lazy thumbnail cache service in `core/media/src/main/java/dev/anilbeesetti/nextplayer/core/media/LanThumbnailCache.kt`
 - [ ] T047 [US2] Register LAN thumbnail fetcher or decoder with Coil image loading in `app/src/main/java/dev/anilbeesetti/nextplayer/VideoThumbnailDecoder.kt`
-- [ ] T048 [P] [US2] Create LAN playback descriptor and URI builder in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanPlaybackDescriptor.kt`
-- [ ] T049 [US2] Implement SMB Media3 data source integration in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/lan/SmbMediaDataSource.kt`
-- [ ] T050 [US2] Wire SMB playback data source into player media creation in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/service/PlayerService.kt`
-- [ ] T051 [US2] Pass selected LAN video and sibling list from picker to player in `app/src/main/java/dev/anilbeesetti/nextplayer/navigation/MediaNavGraph.kt`
-- [ ] T052 [US2] Add Vietnamese folder browsing and playback error messages in `feature/videopicker/src/main/res/values/strings.xml`
+- [X] T048 [P] [US2] Create LAN playback descriptor and URI builder in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/LanPlaybackDescriptor.kt`
+- [X] T049 [US2] Implement SMB Media3 data source integration in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/lan/SmbMediaDataSource.kt`
+- [X] T050 [US2] Wire SMB playback data source into player media creation in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/service/PlayerService.kt`
+- [X] T051 [US2] Pass selected LAN video and sibling list from picker to player in `app/src/main/java/dev/anilbeesetti/nextplayer/navigation/MediaNavGraph.kt`
+- [X] T052 [US2] Add Vietnamese folder browsing and playback error messages in `core/ui/src/main/res/values/strings.xml`
 
 ## Phase 5: User Story 3 - Bookmark thư mục LAN đang xem (Priority: P2)
 
@@ -103,33 +103,33 @@ Android multi-module repository paths are relative to repository root. Use Power
 
 ### Tests for User Story 3
 
-- [ ] T053 [P] [US3] Add bookmark DAO tests for create, duplicate prevention, delete, and server deletion behavior in `core/database/src/androidTest/java/dev/anilbeesetti/nextplayer/core/database/dao/LanFolderBookmarkDaoTest.kt`
-- [ ] T054 [P] [US3] Add bookmark repository tests for open success, target missing, and unavailable server in `core/data/src/test/java/dev/anilbeesetti/nextplayer/core/data/repository/LocalLanBookmarkRepositoryTest.kt`
-- [ ] T055 [P] [US3] Add bookmark ViewModel tests for add current folder, open bookmark, delete, and duplicate feedback in `feature/videopicker/src/test/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanBookmarkViewModelTest.kt`
+- [X] T053 [P] [US3] Add bookmark DAO tests for create, duplicate prevention, delete, and server deletion behavior in `core/database/src/androidTest/java/dev/anilbeesetti/nextplayer/core/database/dao/LanFolderBookmarkDaoTest.kt`
+- [X] T054 [P] [US3] Add bookmark repository tests for open success, target missing, and unavailable server in `core/data/src/test/java/dev/anilbeesetti/nextplayer/core/data/repository/LocalLanBookmarkRepositoryTest.kt`
+- [X] T055 [P] [US3] Add bookmark ViewModel tests for add current folder, open bookmark, delete, and duplicate feedback in `feature/videopicker/src/test/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanBookmarkViewModelTest.kt`
 
 ### Implementation for User Story 3
 
-- [ ] T056 [P] [US3] Create `LanFolderBookmarkEntity` in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/entities/LanFolderBookmarkEntity.kt`
-- [ ] T057 [P] [US3] Create `LanFolderBookmarkDao` in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/dao/LanFolderBookmarkDao.kt`
-- [ ] T058 [US3] Register bookmark table, relation cleanup, and migration in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/MediaDatabase.kt`
-- [ ] T059 [US3] Implement bookmark repository methods in `core/data/src/main/java/dev/anilbeesetti/nextplayer/core/data/repository/LocalLanBookmarkRepository.kt`
-- [ ] T060 [P] [US3] Create bookmark use cases in `core/domain/src/main/java/dev/anilbeesetti/nextplayer/core/domain/lan/ManageLanBookmarksUseCases.kt`
-- [ ] T061 [US3] Implement bookmark list and actions state in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanBookmarkViewModel.kt`
-- [ ] T062 [US3] Build bookmark list UI and open/delete actions in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanBookmarkScreen.kt`
-- [ ] T063 [US3] Add bookmark current folder action to folder browser UI in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanFolderBrowserScreen.kt`
-- [ ] T064 [US3] Add Vietnamese bookmark duplicate and invalid-target messages in `feature/videopicker/src/main/res/values/strings.xml`
+- [X] T056 [P] [US3] Create `LanFolderBookmarkEntity` in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/entities/LanFolderBookmarkEntity.kt`
+- [X] T057 [P] [US3] Create `LanFolderBookmarkDao` in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/dao/LanFolderBookmarkDao.kt`
+- [X] T058 [US3] Register bookmark table, relation cleanup, and migration in `core/database/src/main/java/dev/anilbeesetti/nextplayer/core/database/MediaDatabase.kt`
+- [X] T059 [US3] Implement bookmark repository methods in `core/data/src/main/java/dev/anilbeesetti/nextplayer/core/data/repository/LocalLanBookmarkRepository.kt`
+- [X] T060 [P] [US3] Create bookmark use cases in `core/domain/src/main/java/dev/anilbeesetti/nextplayer/core/domain/lan/ManageLanBookmarksUseCases.kt`
+- [X] T061 [US3] Implement bookmark list and actions state in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanBookmarkViewModel.kt`
+- [X] T062 [US3] Build bookmark list UI and open/delete actions in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanBookmarkScreen.kt`
+- [X] T063 [US3] Add bookmark current folder action to folder browser UI in `feature/videopicker/src/main/java/dev/anilbeesetti/nextplayer/feature/videopicker/lan/LanFolderBrowserScreen.kt`
+- [X] T064 [US3] Add Vietnamese bookmark duplicate and invalid-target messages in `core/ui/src/main/res/values/strings.xml`
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T065 [P] Add LAN quickstart manual validation results to `memory_bank/wf_20260519_lan_video_playback.md`
-- [ ] T066 [P] Document SMB server setup assumptions and troubleshooting in `specs/005-lan-video-playback/quickstart.md`
-- [ ] T067 Run targeted compile verification and record command output summary in `memory_bank/wf_20260519_lan_video_playback.md`
+- [X] T065 [P] Add LAN quickstart manual validation results to `memory_bank/wf_20260519_lan_video_playback.md`
+- [X] T066 [P] Document SMB server setup assumptions and troubleshooting in `specs/005-lan-video-playback/quickstart.md`
+- [X] T067 Run targeted compile verification and record command output summary in `memory_bank/wf_20260519_lan_video_playback.md`
 - [ ] T068 Run targeted unit and android tests and record command output summary in `memory_bank/wf_20260519_lan_video_playback.md`
-- [ ] T069 Run full debug assemble verification and record command output summary in `memory_bank/wf_20260519_lan_video_playback.md`
-- [ ] T070 Run `rtk .\gradlew ktlintCheck` and fix only LAN feature formatting issues under `core/lan/src/main/java`, `core/data/src/main/java`, `core/domain/src/main/java`, `core/media/src/main/java`, `feature/videopicker/src/main/java`, and `feature/player/src/main/java`
-- [ ] T071 Review all user-facing Vietnamese strings for consistency in `feature/videopicker/src/main/res/values/strings.xml`
-- [ ] T072 Run GitNexus change detection before commit and record affected scope in `memory_bank/wf_20260519_lan_video_playback.md`
-- [ ] T073 Update implementation status for completed tasks in `specs/005-lan-video-playback/tasks.md`
+- [X] T069 Run full debug assemble verification and record command output summary in `memory_bank/wf_20260519_lan_video_playback.md`
+- [X] T070 Run `rtk .\gradlew ktlintCheck` and fix only LAN feature formatting issues under `core/lan/src/main/java`, `core/data/src/main/java`, `core/domain/src/main/java`, `core/media/src/main/java`, `feature/videopicker/src/main/java`, and `feature/player/src/main/java`
+- [X] T071 Review all user-facing Vietnamese strings for consistency in `core/ui/src/main/res/values/strings.xml`
+- [X] T072 Run GitNexus change detection before commit and record affected scope in `memory_bank/wf_20260519_lan_video_playback.md`
+- [X] T073 Update implementation status for completed tasks in `specs/005-lan-video-playback/tasks.md`
 
 ## Dependencies & Execution Order
 

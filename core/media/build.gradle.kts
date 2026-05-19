@@ -30,6 +30,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:database"))
     implementation(project(":core:model"))
+    implementation(project(":core:lan"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.github.anilbeesetti.nextlib.mediainfo)
@@ -42,6 +43,7 @@ dependencies {
     kspAndroidTest(libs.hilt.compiler)
 
     testImplementation(libs.junit4)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.espresso.core)
 }

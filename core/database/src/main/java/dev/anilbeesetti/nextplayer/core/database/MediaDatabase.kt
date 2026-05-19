@@ -5,10 +5,16 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.anilbeesetti.nextplayer.core.database.dao.DirectoryDao
+import dev.anilbeesetti.nextplayer.core.database.dao.LanFolderBookmarkDao
+import dev.anilbeesetti.nextplayer.core.database.dao.LanServerDao
+import dev.anilbeesetti.nextplayer.core.database.dao.LanThumbnailCacheDao
 import dev.anilbeesetti.nextplayer.core.database.dao.MediumDao
 import dev.anilbeesetti.nextplayer.core.database.dao.MediumStateDao
 import dev.anilbeesetti.nextplayer.core.database.entities.AudioStreamInfoEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.DirectoryEntity
+import dev.anilbeesetti.nextplayer.core.database.entities.LanFolderBookmarkEntity
+import dev.anilbeesetti.nextplayer.core.database.entities.LanServerEntity
+import dev.anilbeesetti.nextplayer.core.database.entities.LanThumbnailCacheEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.MediumEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.MediumStateEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.SubtitleStreamInfoEntity
@@ -22,8 +28,11 @@ import dev.anilbeesetti.nextplayer.core.database.entities.VideoStreamInfoEntity
         VideoStreamInfoEntity::class,
         AudioStreamInfoEntity::class,
         SubtitleStreamInfoEntity::class,
+        LanServerEntity::class,
+        LanThumbnailCacheEntity::class,
+        LanFolderBookmarkEntity::class,
     ],
-    version = 4,
+    version = 7,
     exportSchema = true,
 )
 abstract class MediaDatabase : RoomDatabase() {
@@ -33,6 +42,12 @@ abstract class MediaDatabase : RoomDatabase() {
     abstract fun mediumStateDao(): MediumStateDao
 
     abstract fun directoryDao(): DirectoryDao
+
+    abstract fun lanServerDao(): LanServerDao
+
+    abstract fun lanThumbnailCacheDao(): LanThumbnailCacheDao
+
+    abstract fun lanFolderBookmarkDao(): LanFolderBookmarkDao
 
     companion object {
         const val DATABASE_NAME = "media_db"
@@ -182,6 +197,88 @@ abstract class MediaDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `media_state` ADD COLUMN `subtitle_delay` INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE `media_state` ADD COLUMN `subtitle_speed` REAL NOT NULL DEFAULT 1")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `lan_servers` (
+                        `id` TEXT NOT NULL,
+                        `display_name` TEXT NOT NULL,
+                        `host` TEXT NOT NULL,
+                        `share_name` TEXT NOT NULL,
+                        `initial_path` TEXT NOT NULL,
+                        `username` TEXT NOT NULL,
+                        `credential_key` TEXT,
+                        `has_password` INTEGER NOT NULL,
+                        `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL,
+                        `last_connected_at` INTEGER,
+                        PRIMARY KEY(`id`)
+                    )
+                    """,
+                )
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS `index_lan_servers_host_share_name_initial_path_username`
+                    ON `lan_servers` (`host`, `share_name`, `initial_path`, `username`)
+                    """,
+                )
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `lan_thumbnail_cache` (
+                        `cache_key` TEXT NOT NULL,
+                        `server_id` TEXT NOT NULL,
+                        `media_path` TEXT NOT NULL,
+                        `thumbnail_file_path` TEXT NOT NULL,
+                        `size_bytes` INTEGER,
+                        `modified_at` INTEGER,
+                        `created_at` INTEGER NOT NULL,
+                        `last_used_at` INTEGER NOT NULL,
+                        PRIMARY KEY(`cache_key`)
+                    )
+                    """,
+                )
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS `index_lan_thumbnail_cache_server_id_media_path`
+                    ON `lan_thumbnail_cache` (`server_id`, `media_path`)
+                    """,
+                )
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `lan_folder_bookmarks` (
+                        `id` TEXT NOT NULL,
+                        `server_id` TEXT NOT NULL,
+                        `folder_path` TEXT NOT NULL,
+                        `display_name` TEXT NOT NULL,
+                        `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL,
+                        `last_opened_at` INTEGER,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`server_id`) REFERENCES `lan_servers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """,
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_lan_folder_bookmarks_server_id` ON `lan_folder_bookmarks` (`server_id`)")
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS `index_lan_folder_bookmarks_server_id_folder_path`
+                    ON `lan_folder_bookmarks` (`server_id`, `folder_path`)
+                    """,
+                )
             }
         }
     }
