@@ -55,3 +55,8 @@ fastlane/test_output
 vendor/
 .bundle/
 .kotlin
+
+# Offline subtitle model artifacts
+offline-models/
+*.ggml
+*.onnx

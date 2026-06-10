@@ -213,6 +213,38 @@ function Get-FeatureDirFromBranchPrefixOrExit {
     return $resolved
 }
 
+function Test-FeatureJsonMatchesFeatureDir {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepoRoot,
+        [Parameter(Mandatory = $true)][string]$ActiveFeatureDir
+    )
+
+    $featureJson = Join-Path $RepoRoot '.specify/feature.json'
+    if (-not (Test-Path $featureJson -PathType Leaf)) {
+        return $false
+    }
+
+    try {
+        $featureConfig = Get-Content -LiteralPath $featureJson -Raw | ConvertFrom-Json
+    } catch {
+        return $false
+    }
+
+    if (-not $featureConfig.feature_directory) {
+        return $false
+    }
+
+    $configuredDir = $featureConfig.feature_directory
+    if (-not [System.IO.Path]::IsPathRooted($configuredDir)) {
+        $configuredDir = Join-Path $RepoRoot $configuredDir
+    }
+
+    $configuredFullPath = [System.IO.Path]::GetFullPath($configuredDir).TrimEnd('\', '/')
+    $activeFullPath = [System.IO.Path]::GetFullPath($ActiveFeatureDir).TrimEnd('\', '/')
+
+    return [string]::Equals($configuredFullPath, $activeFullPath, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 function Get-FeaturePathsEnv {
     $repoRoot = Get-RepoRoot
     $currentBranch = Get-CurrentBranch
