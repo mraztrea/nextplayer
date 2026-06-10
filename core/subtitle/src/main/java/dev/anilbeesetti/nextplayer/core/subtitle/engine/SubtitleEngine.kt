@@ -115,8 +115,8 @@ class SubtitleEngineImpl @Inject constructor(
     }
 
     override fun resetSession() {
-        Logger.logDebug(TAG, "Resetting session (make-before-break với carryover context)")
         val baseConfig = currentConfig ?: return
+        Logger.logDebug(TAG, "Resetting session (make-before-break với carryover context)")
         val carryover = sessionManager.getCarryoverContext().ifBlank { null }
         val newConfig = baseConfig.copy(carryoverContext = carryover)
 

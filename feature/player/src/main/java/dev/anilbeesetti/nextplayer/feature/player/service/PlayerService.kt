@@ -66,6 +66,7 @@ import dev.anilbeesetti.nextplayer.feature.player.extensions.switchTrack
 import dev.anilbeesetti.nextplayer.feature.player.extensions.uriToSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.videoZoom
 import dev.anilbeesetti.nextplayer.core.subtitle.audio.SubtitleAudioProcessor
+import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngine
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleDelayMilliseconds
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
@@ -103,6 +104,9 @@ class PlayerService : MediaSessionService() {
     @Inject
     lateinit var subtitleAudioProcessor: SubtitleAudioProcessor
 
+    @Inject
+    lateinit var subtitleEngine: SubtitleEngine
+
     private val playerPreferences: PlayerPreferences
         get() = preferencesRepository.playerPreferences.value
 
@@ -138,6 +142,10 @@ class PlayerService : MediaSessionService() {
             reason: Int,
         ) {
             super.onPositionDiscontinuity(oldPosition, newPosition, reason)
+            if (reason == DISCONTINUITY_REASON_SEEK) {
+                subtitleEngine.resetSession()
+            }
+
             val oldMediaItem = oldPosition.mediaItem ?: return
 
             when (reason) {

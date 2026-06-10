@@ -25,6 +25,7 @@ class SubtitleAudioProcessor @Inject constructor(
 
     private var inputAudioFormat = AudioFormat.NOT_SET
     private var isActive = false
+    private var internalOutputBuffer = AudioProcessor.EMPTY_BUFFER
     private var outputBuffer = AudioProcessor.EMPTY_BUFFER
     private var inputEnded = false
 
@@ -68,9 +69,12 @@ class SubtitleAudioProcessor @Inject constructor(
             )
         }
 
-        // Pass-through: tạo view độc lập của dữ liệu input để trả về từ getOutput()
-        // Sau đó đánh dấu inputBuffer đã được tiêu thụ hoàn toàn (theo contract của Media3 AudioProcessor)
-        outputBuffer = inputBuffer.duplicate()
+        // Pass-through: copy PCM ra buffer riêng để output không phụ thuộc vòng đời inputBuffer của Media3.
+        val inputCopy = inputBuffer.duplicate()
+        val output = replaceOutputBuffer(inputCopy.remaining())
+        output.put(inputCopy)
+        output.flip()
+        outputBuffer = output
         inputBuffer.position(inputBuffer.limit())
     }
 
@@ -92,6 +96,9 @@ class SubtitleAudioProcessor @Inject constructor(
     override fun flush() {
         outputBuffer = AudioProcessor.EMPTY_BUFFER
         inputEnded = false
+        if (isEnabled) {
+            audioBatcher.reset()
+        }
     }
 
     override fun reset() {
@@ -99,5 +106,14 @@ class SubtitleAudioProcessor @Inject constructor(
         isActive = false
         inputAudioFormat = AudioFormat.NOT_SET
         audioBatcher.reset()
+    }
+
+    private fun replaceOutputBuffer(size: Int): ByteBuffer {
+        if (internalOutputBuffer.capacity() < size) {
+            internalOutputBuffer = ByteBuffer.allocateDirect(size).order(ByteOrder.nativeOrder())
+        } else {
+            internalOutputBuffer.clear()
+        }
+        return internalOutputBuffer
     }
 }
