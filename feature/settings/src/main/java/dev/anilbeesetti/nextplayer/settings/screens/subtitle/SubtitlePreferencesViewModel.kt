@@ -8,7 +8,10 @@ import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.model.Font
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SonioxWebSocketClient
+import dev.anilbeesetti.nextplayer.core.subtitle.model.ModelPreparationState
+import dev.anilbeesetti.nextplayer.core.subtitle.model.OfflineModel
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleDisplayMode
+import dev.anilbeesetti.nextplayer.core.subtitle.storage.OfflineModelRepository
 import dev.anilbeesetti.nextplayer.core.subtitle.storage.SecureApiKeyStorage
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +24,7 @@ class SubtitlePreferencesViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val secureApiKeyStorage: SecureApiKeyStorage,
     private val sonioxWebSocketClient: SonioxWebSocketClient,
+    private val offlineModelRepository: OfflineModelRepository,
 ) : ViewModel() {
 
     private val uiStateInternal = MutableStateFlow(
@@ -32,11 +36,28 @@ class SubtitlePreferencesViewModel @Inject constructor(
 
     init {
         loadStoredApiKey()
+        refreshOfflineModel()
 
         viewModelScope.launch {
             preferencesRepository.playerPreferences.collect { preferences ->
                 uiStateInternal.update { currentState ->
                     currentState.copy(preferences = preferences)
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            offlineModelRepository.installedModel.collect { model ->
+                uiStateInternal.update { currentState ->
+                    currentState.copy(offlineModel = model)
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            offlineModelRepository.preparationState.collect { state ->
+                uiStateInternal.update { currentState ->
+                    currentState.copy(modelPreparationState = state)
                 }
             }
         }
@@ -60,6 +81,11 @@ class SubtitlePreferencesViewModel @Inject constructor(
             SubtitlePreferencesUiEvent.ToggleApiKeyVisibility -> toggleApiKeyVisibility()
             SubtitlePreferencesUiEvent.ValidateAndSaveApiKey -> validateAndSaveApiKey()
             SubtitlePreferencesUiEvent.ClearApiKey -> clearApiKey()
+            SubtitlePreferencesUiEvent.ToggleOfflineSubtitle -> toggleOfflineSubtitle()
+            is SubtitlePreferencesUiEvent.UpdateOfflineTargetLanguage -> updateOfflineTargetLanguage(event.value)
+            SubtitlePreferencesUiEvent.ToggleOfflineDownloadWifiOnly -> toggleOfflineDownloadWifiOnly()
+            SubtitlePreferencesUiEvent.RefreshOfflineModel -> refreshOfflineModel()
+            SubtitlePreferencesUiEvent.DeleteOfflineModel -> deleteOfflineModel()
         }
     }
 
@@ -151,6 +177,45 @@ class SubtitlePreferencesViewModel @Inject constructor(
         }
     }
 
+    private fun toggleOfflineSubtitle() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(offlineSubtitleEnabled = !it.offlineSubtitleEnabled)
+            }
+        }
+    }
+
+    private fun updateOfflineTargetLanguage(value: String) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(offlineTargetLanguage = value)
+            }
+        }
+    }
+
+    private fun toggleOfflineDownloadWifiOnly() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(offlineDownloadWifiOnly = !it.offlineDownloadWifiOnly)
+            }
+        }
+    }
+
+    private fun refreshOfflineModel() {
+        offlineModelRepository.refreshInstalledModel()
+        uiStateInternal.update {
+            it.copy(
+                offlineModel = offlineModelRepository.installedModel.value,
+                modelPreparationState = offlineModelRepository.preparationState.value,
+            )
+        }
+    }
+
+    private fun deleteOfflineModel() {
+        offlineModelRepository.deleteInstalledModel()
+        refreshOfflineModel()
+    }
+
     private fun updateDisplayMode(value: SubtitleDisplayMode) {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
@@ -231,6 +296,8 @@ data class SubtitlePreferencesUiState(
     val apiKeyInput: String = "",
     val isApiKeyVisible: Boolean = false,
     val apiKeyValidationState: ApiKeyValidationState = ApiKeyValidationState.Idle,
+    val offlineModel: OfflineModel? = null,
+    val modelPreparationState: ModelPreparationState = ModelPreparationState(),
 )
 
 sealed interface ApiKeyValidationState {
@@ -246,6 +313,7 @@ sealed interface SubtitlePreferenceDialog {
     data object SubtitleEncodingDialog : SubtitlePreferenceDialog
     data object SourceLanguageDialog : SubtitlePreferenceDialog
     data object TargetLanguageDialog : SubtitlePreferenceDialog
+    data object OfflineTargetLanguageDialog : SubtitlePreferenceDialog
     data object DisplayModeDialog : SubtitlePreferenceDialog
 }
 
@@ -266,4 +334,9 @@ sealed interface SubtitlePreferencesUiEvent {
     data object ToggleApiKeyVisibility : SubtitlePreferencesUiEvent
     data object ValidateAndSaveApiKey : SubtitlePreferencesUiEvent
     data object ClearApiKey : SubtitlePreferencesUiEvent
+    data object ToggleOfflineSubtitle : SubtitlePreferencesUiEvent
+    data class UpdateOfflineTargetLanguage(val value: String) : SubtitlePreferencesUiEvent
+    data object ToggleOfflineDownloadWifiOnly : SubtitlePreferencesUiEvent
+    data object RefreshOfflineModel : SubtitlePreferencesUiEvent
+    data object DeleteOfflineModel : SubtitlePreferencesUiEvent
 }

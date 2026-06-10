@@ -6,6 +6,12 @@
 - A v1 offline model package with valid manifest for Japanese transcript and Japanese -> Vietnamese/English translation.
 - Model download URL configured for the prototype, or a local package available through Android file picker.
 
+## Prototype Status
+
+- Current implementation includes the offline model manifest contract, model readiness repository, settings state/UI, player runtime mode selection, and a prototype offline engine.
+- The prototype engine emits a fixed Japanese transcript and Vietnamese/English translation after a valid model manifest is installed in app-specific storage.
+- Native sherpa-onnx or whisper.cpp runtime binding is intentionally behind `OfflineSubtitleEngine` and is not bundled yet.
+
 ## Build
 
 ```powershell
@@ -15,18 +21,15 @@ pwsh -NoProfile -Command "$env:JAVA_HOME='C:\Users\ducthanh276\.serena\language_
 ## Scenario 1: Import model manually
 
 1. Open Settings > Subtitle/Translation.
-2. Open Offline model section.
-3. Select Import model.
-4. Choose a package with valid manifest.
-5. Verify model state becomes Ready.
+2. Open Offline subtitle section.
+3. Use Refresh model after placing a valid `manifest.json` package in the app model directory during prototype testing.
+4. Verify model state becomes Ready.
 
 ## Scenario 2: Download model
 
 1. Open Settings > Subtitle/Translation.
-2. Select Download recommended model.
-3. Verify size and Wi-Fi-only default are shown.
-4. Confirm download.
-5. Verify progress and Ready state.
+2. Verify Wi-Fi-only default is visible in the Offline subtitle section.
+3. Download task implementation is pending native/model distribution wiring.
 
 ## Scenario 3: Run offline subtitle
 

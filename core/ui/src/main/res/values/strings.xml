@@ -78,6 +78,16 @@
     <string name="subtitle">Subtitle</string>
     <string name="translation">Translation</string>
     <string name="live_subtitle">Live subtitle</string>
+    <string name="offline_subtitle">Offline subtitle</string>
+    <string name="offline_subtitle_model">Offline model</string>
+    <string name="offline_subtitle_model_ready">Ready</string>
+    <string name="offline_subtitle_model_missing">No offline model installed</string>
+    <string name="offline_subtitle_download_wifi_only">Download over Wi-Fi by default</string>
+    <string name="offline_subtitle_import_model">Import model</string>
+    <string name="offline_subtitle_delete_model">Delete model</string>
+    <string name="offline_subtitle_privacy">Offline sessions do not send audio or transcripts over the network.</string>
+    <string name="offline_subtitle_target_language">Offline target language</string>
+    <string name="offline_subtitle_refresh_model">Refresh model</string>
     <string name="soniox_api_key">Soniox API key</string>
     <string name="soniox_api_key_placeholder">Paste your Soniox API key</string>
     <string name="source_language">Source language</string>

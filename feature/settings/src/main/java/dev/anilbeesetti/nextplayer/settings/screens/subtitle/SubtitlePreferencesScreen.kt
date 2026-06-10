@@ -97,6 +97,25 @@ private fun SubtitlePreferencesContent(
         LocalesHelper.getTranslationLanguageDisplayName(uiState.preferences.targetLanguage)
             .ifBlank { uiState.preferences.targetLanguage }
     }
+    val offlineTargetLanguages = remember {
+        listOf(
+            "Vietnamese" to PlayerPreferences.OFFLINE_SUBTITLE_TARGET_VIETNAMESE,
+            "English" to PlayerPreferences.OFFLINE_SUBTITLE_TARGET_ENGLISH,
+        )
+    }
+    val offlineTargetLanguageDescription = remember(uiState.preferences.offlineTargetLanguage) {
+        offlineTargetLanguages.firstOrNull { it.second == uiState.preferences.offlineTargetLanguage }?.first
+            ?: uiState.preferences.offlineTargetLanguage
+    }
+    val offlineModelDescription = remember(uiState.offlineModel) {
+        uiState.offlineModel?.let { model ->
+            if (model.isReady) {
+                "${model.displayName} ${model.version}"
+            } else {
+                model.lastError ?: context.getString(R.string.offline_subtitle_model_missing)
+            }
+        } ?: context.getString(R.string.offline_subtitle_model_missing)
+    }
     val apiKeyStatusText = remember(
         uiState.apiKeyValidationState,
         uiState.preferences.hasApiKeyConfigured,
@@ -216,6 +235,66 @@ private fun SubtitlePreferencesContent(
                     description = selectedDisplayMode.label(),
                     icon = NextIcons.Caption,
                     onClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.DisplayModeDialog)) },
+                    isLastItem = true,
+                )
+            }
+            ListSectionTitle(text = stringResource(id = R.string.offline_subtitle))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.offline_subtitle_privacy),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    androidx.compose.foundation.layout.Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilledTonalButton(onClick = { onEvent(SubtitlePreferencesUiEvent.RefreshOfflineModel) }) {
+                            Text(text = stringResource(id = R.string.offline_subtitle_refresh_model))
+                        }
+                        TextButton(
+                            enabled = uiState.offlineModel != null,
+                            onClick = { onEvent(SubtitlePreferencesUiEvent.DeleteOfflineModel) },
+                        ) {
+                            Text(text = stringResource(id = R.string.offline_subtitle_delete_model))
+                        }
+                    }
+                }
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+            ) {
+                PreferenceSwitch(
+                    title = stringResource(id = R.string.offline_subtitle),
+                    description = offlineModelDescription,
+                    icon = NextIcons.Caption,
+                    isChecked = uiState.preferences.offlineSubtitleEnabled,
+                    onClick = { onEvent(SubtitlePreferencesUiEvent.ToggleOfflineSubtitle) },
+                    isFirstItem = true,
+                )
+                ClickablePreferenceItem(
+                    title = stringResource(id = R.string.offline_subtitle_target_language),
+                    description = offlineTargetLanguageDescription,
+                    icon = NextIcons.Language,
+                    onClick = {
+                        onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.OfflineTargetLanguageDialog))
+                    },
+                )
+                PreferenceSwitch(
+                    title = stringResource(id = R.string.offline_subtitle_download_wifi_only),
+                    description = stringResource(id = R.string.offline_subtitle_model),
+                    icon = NextIcons.Update,
+                    isChecked = uiState.preferences.offlineDownloadWifiOnly,
+                    onClick = { onEvent(SubtitlePreferencesUiEvent.ToggleOfflineDownloadWifiOnly) },
                     isLastItem = true,
                 )
             }
@@ -396,6 +475,24 @@ private fun SubtitlePreferencesContent(
                                 selected = option.second == uiState.preferences.targetLanguage,
                                 onClick = {
                                     onEvent(SubtitlePreferencesUiEvent.UpdateTranslationTargetLanguage(option.second))
+                                    onEvent(SubtitlePreferencesUiEvent.ShowDialog(null))
+                                },
+                            )
+                        }
+                    }
+                }
+
+                SubtitlePreferenceDialog.OfflineTargetLanguageDialog -> {
+                    OptionsDialog(
+                        text = stringResource(id = R.string.offline_subtitle_target_language),
+                        onDismissClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(null)) },
+                    ) {
+                        items(offlineTargetLanguages) { option ->
+                            RadioTextButton(
+                                text = option.first,
+                                selected = option.second == uiState.preferences.offlineTargetLanguage,
+                                onClick = {
+                                    onEvent(SubtitlePreferencesUiEvent.UpdateOfflineTargetLanguage(option.second))
                                     onEvent(SubtitlePreferencesUiEvent.ShowDialog(null))
                                 },
                             )

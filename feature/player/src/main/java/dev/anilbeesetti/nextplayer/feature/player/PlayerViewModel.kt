@@ -12,9 +12,11 @@ import dev.anilbeesetti.nextplayer.core.model.LoopMode
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
+import dev.anilbeesetti.nextplayer.core.subtitle.engine.OfflineSubtitleEngine
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngine
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleStartResult
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleEngineStatus
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleRuntimeMode
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleSegment
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
 import dev.anilbeesetti.nextplayer.feature.player.state.VideoZoomEvent
@@ -31,10 +33,12 @@ class PlayerViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val getSortedPlaylistUseCase: GetSortedPlaylistUseCase,
     val subtitleEngine: SubtitleEngine,
+    private val offlineSubtitleEngine: OfflineSubtitleEngine,
 ) : ViewModel() {
 
     companion object {
         private const val CONNECTING_TO_SONIOX_MESSAGE = "Connecting to Soniox..."
+        private const val CONNECTING_TO_OFFLINE_SUBTITLE_MESSAGE = "Starting offline subtitles..."
     }
 
     var playWhenReady: Boolean = true
@@ -46,9 +50,16 @@ class PlayerViewModel @Inject constructor(
     private val _subtitleNotice = MutableStateFlow<String?>(null)
     val subtitleNotice: StateFlow<String?> = _subtitleNotice.asStateFlow()
 
-    val subtitleSegments: StateFlow<List<SubtitleSegment>> = subtitleEngine.displaySegments
-    val provisionalText: StateFlow<String> = subtitleEngine.provisionalText
-    val subtitleStatus: StateFlow<SubtitleEngineStatus> = subtitleEngine.status
+    private val _subtitleSegments = MutableStateFlow<List<SubtitleSegment>>(emptyList())
+    val subtitleSegments: StateFlow<List<SubtitleSegment>> = _subtitleSegments.asStateFlow()
+
+    private val _provisionalText = MutableStateFlow("")
+    val provisionalText: StateFlow<String> = _provisionalText.asStateFlow()
+
+    private val _subtitleStatus = MutableStateFlow(SubtitleEngineStatus.IDLE)
+    val subtitleStatus: StateFlow<SubtitleEngineStatus> = _subtitleStatus.asStateFlow()
+
+    private val _activeSubtitleRuntimeMode = MutableStateFlow<SubtitleRuntimeMode?>(null)
 
     private val internalUiState = MutableStateFlow(
         PlayerUiState(
@@ -66,8 +77,54 @@ class PlayerViewModel @Inject constructor(
 
         viewModelScope.launch {
             subtitleEngine.status.collect { status ->
-                if (status == SubtitleEngineStatus.ERROR || status == SubtitleEngineStatus.STOPPED || status == SubtitleEngineStatus.IDLE) {
-                    _liveSubtitleActive.value = false
+                if (_activeSubtitleRuntimeMode.value == SubtitleRuntimeMode.ONLINE_SONIOX) {
+                    _subtitleStatus.value = status
+                    if (status.isInactive()) {
+                        _liveSubtitleActive.value = false
+                    }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            offlineSubtitleEngine.status.collect { status ->
+                if (_activeSubtitleRuntimeMode.value == SubtitleRuntimeMode.OFFLINE) {
+                    _subtitleStatus.value = status
+                    if (status.isInactive()) {
+                        _liveSubtitleActive.value = false
+                    }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            subtitleEngine.displaySegments.collect { segments ->
+                if (_activeSubtitleRuntimeMode.value == SubtitleRuntimeMode.ONLINE_SONIOX) {
+                    _subtitleSegments.value = segments
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            offlineSubtitleEngine.displaySegments.collect { segments ->
+                if (_activeSubtitleRuntimeMode.value == SubtitleRuntimeMode.OFFLINE) {
+                    _subtitleSegments.value = segments
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            subtitleEngine.provisionalText.collect { text ->
+                if (_activeSubtitleRuntimeMode.value == SubtitleRuntimeMode.ONLINE_SONIOX) {
+                    _provisionalText.value = text
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            offlineSubtitleEngine.provisionalText.collect { text ->
+                if (_activeSubtitleRuntimeMode.value == SubtitleRuntimeMode.OFFLINE) {
+                    _provisionalText.value = text
                 }
             }
         }
@@ -123,15 +180,27 @@ class PlayerViewModel @Inject constructor(
     }
 
     suspend fun startLiveSubtitle() {
-        when (val startResult = subtitleEngine.start()) {
+        val runtimeMode = if (preferencesRepository.playerPreferences.value.offlineSubtitleEnabled) {
+            SubtitleRuntimeMode.OFFLINE
+        } else {
+            SubtitleRuntimeMode.ONLINE_SONIOX
+        }
+        val engine = engineFor(runtimeMode)
+        _activeSubtitleRuntimeMode.value = runtimeMode
+
+        when (val startResult = engine.start()) {
             SubtitleStartResult.Started -> {
                 _liveSubtitleActive.value = true
-                _subtitleNotice.value = CONNECTING_TO_SONIOX_MESSAGE
+                _subtitleNotice.value = when (runtimeMode) {
+                    SubtitleRuntimeMode.ONLINE_SONIOX -> CONNECTING_TO_SONIOX_MESSAGE
+                    SubtitleRuntimeMode.OFFLINE -> CONNECTING_TO_OFFLINE_SUBTITLE_MESSAGE
+                }
                 preferencesRepository.updatePlayerPreferences {
-                    it.copy(liveSubtitleEnabled = true)
+                    it.copy(liveSubtitleEnabled = runtimeMode == SubtitleRuntimeMode.ONLINE_SONIOX)
                 }
             }
             is SubtitleStartResult.Failed -> {
+                _activeSubtitleRuntimeMode.value = null
                 _subtitleNotice.value = startResult.message
                 preferencesRepository.updatePlayerPreferences {
                     it.copy(liveSubtitleEnabled = false)
@@ -141,7 +210,11 @@ class PlayerViewModel @Inject constructor(
     }
 
     suspend fun stopLiveSubtitle() {
-        subtitleEngine.stop()
+        activeEngine()?.stop()
+        _activeSubtitleRuntimeMode.value = null
+        _subtitleSegments.value = emptyList()
+        _provisionalText.value = ""
+        _subtitleStatus.value = SubtitleEngineStatus.STOPPED
         _liveSubtitleActive.value = false
         preferencesRepository.updatePlayerPreferences {
             it.copy(liveSubtitleEnabled = false)
@@ -155,7 +228,7 @@ class PlayerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         if (_liveSubtitleActive.value) {
-            subtitleEngine.stop()
+            activeEngine()?.stop()
         }
     }
 
@@ -180,6 +253,23 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             mediaRepository.updateSubtitleSpeed(uri, speed)
         }
+    }
+
+    private fun activeEngine(): SubtitleEngine? {
+        return _activeSubtitleRuntimeMode.value?.let(::engineFor)
+    }
+
+    private fun engineFor(runtimeMode: SubtitleRuntimeMode): SubtitleEngine {
+        return when (runtimeMode) {
+            SubtitleRuntimeMode.ONLINE_SONIOX -> subtitleEngine
+            SubtitleRuntimeMode.OFFLINE -> offlineSubtitleEngine
+        }
+    }
+
+    private fun SubtitleEngineStatus.isInactive(): Boolean {
+        return this == SubtitleEngineStatus.ERROR ||
+            this == SubtitleEngineStatus.STOPPED ||
+            this == SubtitleEngineStatus.IDLE
     }
 }
 

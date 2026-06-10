@@ -31,11 +31,11 @@
 
 **Independent Test Criteria**: Với fake/prototype engine và model ready, bật offline subtitle không cần API key/Soniox và không tạo network session.
 
-- [ ] T011 [P] [US1] Add unit tests for offline engine start/stop privacy behavior in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/OfflineSubtitleEngineTest.kt`
-- [ ] T012 [US1] Implement prototype offline engine in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/PrototypeOfflineSubtitleEngine.kt`
-- [ ] T013 [US1] Add subtitle runtime mode selection in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/SubtitleRuntimeMode.kt`
-- [ ] T014 [US1] Integrate offline mode start/stop path in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
-- [ ] T015 [US1] Ensure seek/media reset clears offline subtitle state in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
+- [X] T011 [P] [US1] Add unit tests for offline engine start/stop privacy behavior in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/PrototypeOfflineSubtitleEngineTest.kt`
+- [X] T012 [US1] Implement prototype offline engine in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/PrototypeOfflineSubtitleEngine.kt`
+- [X] T013 [US1] Add subtitle runtime mode selection in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/SubtitleRuntimeMode.kt`
+- [X] T014 [US1] Integrate offline mode start/stop path in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
+- [X] T015 [US1] Ensure seek/media reset clears offline subtitle state in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
 
 ## Phase 4: User Story 2 - Chuẩn bị model bằng tải tự động hoặc import thủ công (Priority: P1)
 
@@ -43,11 +43,11 @@
 
 **Independent Test Criteria**: Manifest thiếu capability hoặc ngôn ngữ bắt buộc bị reject; tải model yêu cầu xác nhận và mặc định Wi-Fi only.
 
-- [ ] T016 [P] [US2] Add manifest validation unit tests in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/storage/OfflineModelManifestTest.kt`
-- [ ] T017 [US2] Implement manifest validation in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/storage/OfflineModelManifest.kt`
-- [ ] T018 [US2] Implement offline model repository skeleton in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/storage/OfflineModelRepository.kt`
-- [ ] T019 [US2] Add model management UI state and events in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesViewModel.kt`
-- [ ] T020 [US2] Add offline model settings section in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesScreen.kt`
+- [X] T016 [P] [US2] Add manifest validation unit tests in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/storage/OfflineModelManifestTest.kt`
+- [X] T017 [US2] Implement manifest validation in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/storage/OfflineModelManifest.kt`
+- [X] T018 [US2] Implement offline model repository skeleton in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/storage/OfflineModelRepository.kt`
+- [X] T019 [US2] Add model management UI state and events in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesViewModel.kt`
+- [X] T020 [US2] Add offline model settings section in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesScreen.kt`
 
 ## Phase 5: User Story 3 - Dịch transcript sang tiếng Việt hoặc tiếng Anh (Priority: P2)
 
@@ -55,9 +55,9 @@
 
 **Independent Test Criteria**: Prototype engine phát ra segment tiếng Nhật có `translationText` đúng target language và overlay dùng các display mode hiện có.
 
-- [ ] T021 [P] [US3] Add offline translation target constants in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/OfflineTranslationTarget.kt`
-- [ ] T022 [US3] Emit prototype Japanese transcript with Vietnamese/English translation in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/PrototypeOfflineSubtitleEngine.kt`
-- [ ] T023 [US3] Restrict settings target language choices for offline mode in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesScreen.kt`
+- [X] T021 [P] [US3] Add offline translation target constants in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/OfflineTranslationTarget.kt`
+- [X] T022 [US3] Emit prototype Japanese transcript with Vietnamese/English translation in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/PrototypeOfflineSubtitleEngine.kt`
+- [X] T023 [US3] Restrict settings target language choices for offline mode in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesScreen.kt`
 
 ## Phase 6: User Story 4 - Duy trì phiên offline ổn định khi phát lâu (Priority: P3)
 
@@ -65,14 +65,14 @@
 
 **Independent Test Criteria**: Stop/reset idempotent; state quay về idle sau stop hoặc seek.
 
-- [ ] T024 [US4] Make prototype offline engine stop/reset idempotent in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/PrototypeOfflineSubtitleEngine.kt`
-- [ ] T025 [US4] Add player error message fallback for missing model/offline failure in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
+- [X] T024 [US4] Make prototype offline engine stop/reset idempotent in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/PrototypeOfflineSubtitleEngine.kt`
+- [X] T025 [US4] Add player error message fallback for missing model/offline failure in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T026 Update quickstart status and implementation notes in `specs/003-offline-asr-translation/quickstart.md`
-- [ ] T027 Run `.\gradlew.bat testDebugUnitTest` and record result in `memory_bank/wf_20260610_offline_asr_translation.md`
-- [ ] T028 Run `.\gradlew.bat assembleDebug` and record result in `memory_bank/wf_20260610_offline_asr_translation.md`
+- [X] T026 Update quickstart status and implementation notes in `specs/003-offline-asr-translation/quickstart.md`
+- [X] T027 Run `.\gradlew.bat testDebugUnitTest` and record result in `memory_bank/wf_20260610_offline_asr_translation.md`
+- [X] T028 Run `.\gradlew.bat assembleDebug` and record result in `memory_bank/wf_20260610_offline_asr_translation.md`
 
 ## Dependencies & Execution Order
 

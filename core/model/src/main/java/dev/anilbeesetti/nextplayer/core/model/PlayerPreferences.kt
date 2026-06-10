@@ -63,6 +63,10 @@ data class PlayerPreferences(
     val endpointDelayMs: Int = DEFAULT_SUBTITLE_ENDPOINT_DELAY_MS,
     val liveSubtitleEnabled: Boolean = false,
     val hasApiKeyConfigured: Boolean = false,
+    val offlineSubtitleEnabled: Boolean = false,
+    val offlineModelId: String = "",
+    val offlineTargetLanguage: String = DEFAULT_OFFLINE_SUBTITLE_TARGET_LANGUAGE,
+    val offlineDownloadWifiOnly: Boolean = true,
 
     // Decoder Preferences
     val decoderPriority: DecoderPriority = DecoderPriority.PREFER_DEVICE,
@@ -79,5 +83,9 @@ data class PlayerPreferences(
         const val DEFAULT_LIVE_SUBTITLE_SOURCE_LANGUAGE = "auto"
         const val DEFAULT_LIVE_SUBTITLE_TARGET_LANGUAGE = "vi"
         const val DEFAULT_LIVE_SUBTITLE_DISPLAY_MODE = "TRANSLATION_ONLY"
+        const val OFFLINE_SUBTITLE_SOURCE_JAPANESE = "ja"
+        const val OFFLINE_SUBTITLE_TARGET_VIETNAMESE = "vi"
+        const val OFFLINE_SUBTITLE_TARGET_ENGLISH = "en"
+        const val DEFAULT_OFFLINE_SUBTITLE_TARGET_LANGUAGE = OFFLINE_SUBTITLE_TARGET_VIETNAMESE
     }
 }

@@ -5,8 +5,12 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import dev.anilbeesetti.nextplayer.core.subtitle.engine.OfflineSubtitleEngine
+import dev.anilbeesetti.nextplayer.core.subtitle.engine.PrototypeOfflineSubtitleEngine
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngine
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngineImpl
+import dev.anilbeesetti.nextplayer.core.subtitle.storage.OfflineModelReadiness
+import dev.anilbeesetti.nextplayer.core.subtitle.storage.OfflineModelRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,4 +54,12 @@ abstract class SubtitleBindsModule {
     @Binds
     @Singleton
     abstract fun bindSubtitleEngine(impl: SubtitleEngineImpl): SubtitleEngine
+
+    @Binds
+    @Singleton
+    abstract fun bindOfflineSubtitleEngine(impl: PrototypeOfflineSubtitleEngine): OfflineSubtitleEngine
+
+    @Binds
+    @Singleton
+    abstract fun bindOfflineModelReadiness(impl: OfflineModelRepository): OfflineModelReadiness
 }

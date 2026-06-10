@@ -18,4 +18,5 @@ Triển khai prototype tính năng phụ đề offline cho audio tiếng Nhật,
 
 ## Verification
 
-- Chưa chạy.
+- `.\gradlew.bat testDebugUnitTest`: PASS sau khi đổi manifest parser từ `org.json` sang `kotlinx.serialization.json`.
+- `.\gradlew.bat assembleDebug`: PASS. Lần đầu fail tạm ở `:app:packageDebug`, chạy riêng `:app:packageDebug --stacktrace` pass và rerun `assembleDebug` pass.
