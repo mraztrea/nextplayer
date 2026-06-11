@@ -73,44 +73,6 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
----
-<!-- rtk:start -->
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
-# RTK - Rust Token Killer (Codex CLI)
-
-**Usage**: Token-optimized CLI proxy for shell commands.
-
-## Rule
-
-**Important: Always prefix shell commands with `rtk`.**
-
-Examples:
-
-```bash
-rtk git status
-rtk cargo test
-rtk npm run build
-rtk pytest -q
-```
-
-## Meta Commands
-
-```bash
-rtk gain            # Token savings analytics
-rtk gain --history  # Recent command savings history
-rtk proxy <cmd>     # Run raw command without filtering
-```
-
-## Verification
-
-```bash
-rtk --version
-rtk gain
-which rtk
-```
-<!-- rtk:end -->
-
-
 <!-- serena:start -->
 ## 🧠 Serena MCP — Semantic Code Intelligence & Memory
 

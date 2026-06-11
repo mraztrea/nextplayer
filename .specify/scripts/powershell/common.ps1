@@ -213,6 +213,41 @@ function Get-FeatureDirFromBranchPrefixOrExit {
     return $resolved
 }
 
+function Test-FeatureJsonMatchesFeatureDir {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepoRoot,
+        [Parameter(Mandatory = $true)][string]$ActiveFeatureDir
+    )
+
+    $featureJson = Join-Path $RepoRoot '.specify/feature.json'
+    if (-not (Test-Path -LiteralPath $featureJson -PathType Leaf)) {
+        return $false
+    }
+
+    try {
+        $featureConfig = Get-Content -LiteralPath $featureJson -Raw | ConvertFrom-Json
+    } catch {
+        return $false
+    }
+
+    if (-not $featureConfig.feature_directory) {
+        return $false
+    }
+
+    $pinnedFeatureDir = $featureConfig.feature_directory
+    if (-not [System.IO.Path]::IsPathRooted($pinnedFeatureDir)) {
+        $pinnedFeatureDir = Join-Path $RepoRoot $pinnedFeatureDir
+    }
+
+    try {
+        $resolvedPinned = [System.IO.Path]::GetFullPath($pinnedFeatureDir).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+        $resolvedActive = [System.IO.Path]::GetFullPath($ActiveFeatureDir).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+        return [System.String]::Equals($resolvedPinned, $resolvedActive, [System.StringComparison]::OrdinalIgnoreCase)
+    } catch {
+        return $false
+    }
+}
+
 function Get-FeaturePathsEnv {
     $repoRoot = Get-RepoRoot
     $currentBranch = Get-CurrentBranch
