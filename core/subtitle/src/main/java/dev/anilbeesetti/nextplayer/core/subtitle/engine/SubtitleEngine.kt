@@ -6,14 +6,18 @@ import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.subtitle.audio.AudioBatcher
 import dev.anilbeesetti.nextplayer.core.subtitle.audio.SubtitleAudioProcessor
 import dev.anilbeesetti.nextplayer.core.subtitle.di.SubtitleScope
+import dev.anilbeesetti.nextplayer.core.subtitle.model.GeminiSessionConfig
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SonioxSessionConfig
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleEngineStatus
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleProvider
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleSegment
 import dev.anilbeesetti.nextplayer.core.subtitle.session.SessionResetScheduler
 import dev.anilbeesetti.nextplayer.core.subtitle.session.SubtitleSessionManager
 import dev.anilbeesetti.nextplayer.core.subtitle.storage.SecureApiKeyStorage
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import javax.inject.Inject
@@ -25,7 +29,7 @@ sealed interface SubtitleStartResult {
 }
 
 interface SubtitleEngine {
-    suspend fun start(): SubtitleStartResult
+    suspend fun start(provider: SubtitleProvider? = null): SubtitleStartResult
     fun stop()
     fun resetSession()
     val status: StateFlow<SubtitleEngineStatus>
@@ -44,6 +48,7 @@ class SubtitleEngineImpl @Inject constructor(
     private val subtitleAudioProcessor: SubtitleAudioProcessor,
     private val preferencesRepository: PreferencesRepository,
     private val secureApiKeyStorage: SecureApiKeyStorage,
+    private val geminiProvider: GeminiSubtitleProvider,
     @param:SubtitleScope private val scope: CoroutineScope,
 ) : SubtitleEngine {
 
@@ -52,23 +57,75 @@ class SubtitleEngineImpl @Inject constructor(
         private const val CONFIGURE_API_KEY_MESSAGE = "Configure Soniox API key in Settings > Subtitle"
     }
 
+    private var activeProvider: SubtitleProvider = SubtitleProvider.SONIOX
     private var currentConfig: SonioxSessionConfig? = null
 
-    override val status: StateFlow<SubtitleEngineStatus> = webSocketClient.status
-    override val displaySegments: StateFlow<List<SubtitleSegment>> = sessionManager.displaySegments
-    override val provisionalText: StateFlow<String> = sessionManager.provisionalText
-    override val provisionalSpeaker: StateFlow<String?> = sessionManager.provisionalSpeaker
+    private val _status = MutableStateFlow(SubtitleEngineStatus.IDLE)
+    override val status: StateFlow<SubtitleEngineStatus> = _status.asStateFlow()
+
+    private val _displaySegments = MutableStateFlow<List<SubtitleSegment>>(emptyList())
+    override val displaySegments: StateFlow<List<SubtitleSegment>> = _displaySegments.asStateFlow()
+
+    private val _provisionalText = MutableStateFlow("")
+    override val provisionalText: StateFlow<String> = _provisionalText.asStateFlow()
+
+    private val _provisionalSpeaker = MutableStateFlow<String?>(null)
+    override val provisionalSpeaker: StateFlow<String?> = _provisionalSpeaker.asStateFlow()
 
     init {
         setupCallbacks()
+        observeProviderFlows()
     }
 
-    override suspend fun start(): SubtitleStartResult {
-        if (status.value == SubtitleEngineStatus.ACTIVE || status.value == SubtitleEngineStatus.CONNECTING) {
+    override suspend fun start(provider: SubtitleProvider?): SubtitleStartResult {
+        val preferences = preferencesRepository.playerPreferences.value
+        val selectedProvider = provider ?: SubtitleProvider.fromPreference(preferences.liveSubtitleProvider)
+        if (
+            activeProvider == selectedProvider &&
+            (_status.value == SubtitleEngineStatus.ACTIVE || _status.value == SubtitleEngineStatus.CONNECTING)
+        ) {
             return SubtitleStartResult.Started
         }
 
-        val apiKey = secureApiKeyStorage.getApiKey()?.trim().orEmpty()
+        if (_status.value == SubtitleEngineStatus.ACTIVE || _status.value == SubtitleEngineStatus.CONNECTING) {
+            stop()
+        }
+
+        return when (selectedProvider) {
+            SubtitleProvider.SONIOX -> startSoniox(preferences)
+            SubtitleProvider.GEMINI_LIVE -> startGemini()
+        }
+    }
+
+    override fun stop() {
+        sessionResetScheduler.stop()
+        subtitleAudioProcessor.setEnabled(false)
+        when (activeProvider) {
+            SubtitleProvider.SONIOX -> {
+                webSocketClient.disconnect()
+                sessionManager.clearDisplay()
+            }
+            SubtitleProvider.GEMINI_LIVE -> geminiProvider.stop()
+        }
+        audioBatcher.reset()
+        currentConfig = null
+        _status.value = SubtitleEngineStatus.STOPPED
+        Logger.logDebug(TAG, "Engine stopped provider=$activeProvider")
+    }
+
+    override fun resetSession() {
+        when (activeProvider) {
+            SubtitleProvider.SONIOX -> resetSonioxSession()
+            SubtitleProvider.GEMINI_LIVE -> {
+                Logger.logDebug(TAG, "Resetting Gemini Live session")
+                geminiProvider.resetSession()
+                sessionResetScheduler.start(::resetSession)
+            }
+        }
+    }
+
+    private suspend fun startSoniox(preferences: PlayerPreferences): SubtitleStartResult {
+        val apiKey = secureApiKeyStorage.getApiKey(SubtitleProvider.SONIOX)?.trim().orEmpty()
         if (apiKey.isBlank()) {
             return failStart(CONFIGURE_API_KEY_MESSAGE)
         }
@@ -78,7 +135,6 @@ class SubtitleEngineImpl @Inject constructor(
             return failStart(validationError)
         }
 
-        val preferences = preferencesRepository.playerPreferences.value
         val config = SonioxSessionConfig(
             apiKey = apiKey,
             targetLanguage = preferences.targetLanguage.ifBlank {
@@ -90,8 +146,11 @@ class SubtitleEngineImpl @Inject constructor(
             endpointDelayMs = preferences.endpointDelayMs,
         )
 
+        activeProvider = SubtitleProvider.SONIOX
         currentConfig = config
         sessionManager.reset()
+        audioBatcher.reset()
+        audioBatcher.setBatchDurationMs(AudioBatcher.DEFAULT_BATCH_DURATION_MS)
         audioBatcher.setListener(object : AudioBatcher.Listener {
             override fun onAudioBatchReady(pcmData: ByteArray) {
                 webSocketClient.sendAudio(pcmData)
@@ -100,23 +159,35 @@ class SubtitleEngineImpl @Inject constructor(
         subtitleAudioProcessor.setEnabled(true)
         webSocketClient.connect(config)
         sessionResetScheduler.start(::resetSession)
-        Logger.logDebug(TAG, "Engine started with target=${config.targetLanguage}")
+        Logger.logDebug(TAG, "Engine started provider=SONIOX target=${config.targetLanguage}")
         return SubtitleStartResult.Started
     }
 
-    override fun stop() {
-        sessionResetScheduler.stop()
-        subtitleAudioProcessor.setEnabled(false)
-        webSocketClient.disconnect()
+    private suspend fun startGemini(): SubtitleStartResult {
+        activeProvider = SubtitleProvider.GEMINI_LIVE
         audioBatcher.reset()
-        sessionManager.clearDisplay()
-        currentConfig = null
-        Logger.logDebug(TAG, "Engine stopped")
+        audioBatcher.setBatchDurationMs(GeminiSessionConfig.CHUNK_DURATION_MS)
+        audioBatcher.setListener(object : AudioBatcher.Listener {
+            override fun onAudioBatchReady(pcmData: ByteArray) {
+                geminiProvider.sendAudio(pcmData)
+            }
+        })
+        subtitleAudioProcessor.setEnabled(true)
+
+        val result = geminiProvider.start()
+        if (result is SubtitleStartResult.Started) {
+            sessionResetScheduler.start(::resetSession)
+            Logger.logDebug(TAG, "Engine started provider=GEMINI_LIVE")
+        } else {
+            subtitleAudioProcessor.setEnabled(false)
+            audioBatcher.reset()
+        }
+        return result
     }
 
-    override fun resetSession() {
+    private fun resetSonioxSession() {
         val baseConfig = currentConfig ?: return
-        Logger.logDebug(TAG, "Resetting session (make-before-break với carryover context)")
+        Logger.logDebug(TAG, "Resetting Soniox session (make-before-break with carryover context)")
         val carryover = sessionManager.getCarryoverContext().ifBlank { null }
         val newConfig = baseConfig.copy(carryoverContext = carryover)
 
@@ -128,6 +199,65 @@ class SubtitleEngineImpl @Inject constructor(
     private fun failStart(message: String): SubtitleStartResult {
         Logger.logError(TAG, message)
         return SubtitleStartResult.Failed(message)
+    }
+
+    private fun observeProviderFlows() {
+        scope.launch {
+            webSocketClient.status.collect { status ->
+                if (activeProvider == SubtitleProvider.SONIOX) {
+                    _status.value = status
+                }
+            }
+        }
+        scope.launch {
+            sessionManager.displaySegments.collect { segments ->
+                if (activeProvider == SubtitleProvider.SONIOX) {
+                    _displaySegments.value = segments
+                }
+            }
+        }
+        scope.launch {
+            sessionManager.provisionalText.collect { text ->
+                if (activeProvider == SubtitleProvider.SONIOX) {
+                    _provisionalText.value = text
+                }
+            }
+        }
+        scope.launch {
+            sessionManager.provisionalSpeaker.collect { speaker ->
+                if (activeProvider == SubtitleProvider.SONIOX) {
+                    _provisionalSpeaker.value = speaker
+                }
+            }
+        }
+        scope.launch {
+            geminiProvider.status.collect { status ->
+                if (activeProvider == SubtitleProvider.GEMINI_LIVE) {
+                    _status.value = status
+                }
+            }
+        }
+        scope.launch {
+            geminiProvider.displaySegments.collect { segments ->
+                if (activeProvider == SubtitleProvider.GEMINI_LIVE) {
+                    _displaySegments.value = segments
+                }
+            }
+        }
+        scope.launch {
+            geminiProvider.provisionalText.collect { text ->
+                if (activeProvider == SubtitleProvider.GEMINI_LIVE) {
+                    _provisionalText.value = text
+                }
+            }
+        }
+        scope.launch {
+            geminiProvider.provisionalSpeaker.collect { speaker ->
+                if (activeProvider == SubtitleProvider.GEMINI_LIVE) {
+                    _provisionalSpeaker.value = speaker
+                }
+            }
+        }
     }
 
     private fun setupCallbacks() {
@@ -160,11 +290,11 @@ class SubtitleEngineImpl @Inject constructor(
             }
 
             override fun onStatusChange(status: SubtitleEngineStatus) {
-                Logger.logDebug(TAG, "Status changed: $status")
+                Logger.logDebug(TAG, "Soniox status changed: $status")
             }
 
             override fun onError(message: String, isRecoverable: Boolean) {
-                Logger.logError(TAG, "Error: $message (recoverable=$isRecoverable)")
+                Logger.logError(TAG, "Soniox error recoverable=$isRecoverable")
             }
         })
     }

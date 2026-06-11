@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleDisplayMode
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleProvider
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleSegment
 
 @Composable
@@ -42,6 +43,15 @@ fun SubtitleOverlay(
         // Render final segments
         val visibleSegments = segments.takeLast(2) // Show last 2 segments
         for (segment in visibleSegments) {
+            if (segment.provider == SubtitleProvider.GEMINI_LIVE) {
+                SubtitleText(
+                    text = segment.displayText,
+                    bgColor = bgColor,
+                    fontWeight = if (segment.isProvisional) FontWeight.Normal else FontWeight.Bold,
+                )
+                continue
+            }
+
             when (displayMode) {
                 SubtitleDisplayMode.TRANSLATION_ONLY -> {
                     segment.translationText?.let { translatedText ->

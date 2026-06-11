@@ -32,7 +32,7 @@ Use `core:subtitle` as the owning module:
 In `feature:settings` subtitle preferences:
 
 - Add provider selector: Soniox / Gemini Live.
-- Add Google API Key input separate from Soniox key.
+- Use one provider-aware API Key input: Soniox loads/saves the Soniox key slot, Gemini Live loads/saves the Google key slot.
 - Add target language selector with `vn` -> `vi`, `en` -> `en`.
 - Keep display mode selector with 3 modes.
 
@@ -74,3 +74,11 @@ After a Gemini subtitle session, inspect logs and confirm they contain no:
 - output transcript
 - Google API Key
 - Soniox API Key
+
+## Implementation Notes
+
+- Gemini Live setup/audio JSON uses `GeminiLiveMessageBuilder` and `kotlinx.serialization.json`.
+- Gemini WebSocket endpoint uses `google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent` with API key query auth.
+- Gemini audio batching uses 100 ms PCM chunks; Soniox keeps the existing 200 ms batches.
+- Player overlay uses `SubtitleSegment.displayText` for Gemini segments and preserves Soniox rendering behavior.
+- Manual live verification still requires a real Google API key and a clear-speech video on device/emulator.

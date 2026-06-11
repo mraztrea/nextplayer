@@ -15,6 +15,7 @@ import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleEngine
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SubtitleStartResult
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleEngineStatus
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleProvider
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleSegment
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
 import dev.anilbeesetti.nextplayer.feature.player.state.VideoZoomEvent
@@ -34,7 +35,7 @@ class PlayerViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
-        private const val CONNECTING_TO_SONIOX_MESSAGE = "Connecting to Soniox..."
+        private const val CONNECTING_TO_SUBTITLE_PROVIDER_MESSAGE = "Connecting to live subtitles..."
     }
 
     var playWhenReady: Boolean = true
@@ -42,6 +43,11 @@ class PlayerViewModel @Inject constructor(
     // Live subtitle state
     private val _liveSubtitleActive = MutableStateFlow(false)
     val liveSubtitleActive: StateFlow<Boolean> = _liveSubtitleActive.asStateFlow()
+    private var lastSubtitleProvider = SubtitleProvider.fromPreference(
+        preferencesRepository.playerPreferences.value.liveSubtitleProvider,
+    )
+    private var lastGeminiTargetLanguage = preferencesRepository.playerPreferences.value.geminiTargetLanguage
+    private var lastGeminiDisplayMode = preferencesRepository.playerPreferences.value.geminiDisplayMode
 
     private val _subtitleNotice = MutableStateFlow<String?>(null)
     val subtitleNotice: StateFlow<String?> = _subtitleNotice.asStateFlow()
@@ -60,14 +66,53 @@ class PlayerViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             preferencesRepository.playerPreferences.collect { prefs ->
+                val currentProvider = SubtitleProvider.fromPreference(prefs.liveSubtitleProvider)
+                val providerChanged = currentProvider != lastSubtitleProvider
+                val geminiSettingsChanged = currentProvider == SubtitleProvider.GEMINI_LIVE &&
+                    (
+                        prefs.geminiTargetLanguage != lastGeminiTargetLanguage ||
+                            prefs.geminiDisplayMode != lastGeminiDisplayMode
+                        )
+
+                if (_liveSubtitleActive.value && providerChanged) {
+                    subtitleEngine.stop()
+                    _liveSubtitleActive.value = false
+                } else if (_liveSubtitleActive.value && geminiSettingsChanged) {
+                    subtitleEngine.stop()
+                    when (val startResult = subtitleEngine.start(currentProvider)) {
+                        SubtitleStartResult.Started -> _liveSubtitleActive.value = true
+                        is SubtitleStartResult.Failed -> {
+                            _liveSubtitleActive.value = false
+                            _subtitleNotice.value = startResult.message
+                        }
+                    }
+                }
+
+                lastSubtitleProvider = currentProvider
+                lastGeminiTargetLanguage = prefs.geminiTargetLanguage
+                lastGeminiDisplayMode = prefs.geminiDisplayMode
                 internalUiState.update { it.copy(playerPreferences = prefs) }
             }
         }
 
         viewModelScope.launch {
             subtitleEngine.status.collect { status ->
-                if (status == SubtitleEngineStatus.ERROR || status == SubtitleEngineStatus.STOPPED || status == SubtitleEngineStatus.IDLE) {
-                    _liveSubtitleActive.value = false
+                when (status) {
+                    SubtitleEngineStatus.NOT_CONFIGURED -> {
+                        _liveSubtitleActive.value = false
+                        _subtitleNotice.value = "Configure API key in Settings > Subtitle"
+                    }
+                    SubtitleEngineStatus.GEMINI_ERROR -> {
+                        _liveSubtitleActive.value = false
+                        _subtitleNotice.value = "Gemini Live subtitles stopped. Check API key, quota, or network"
+                    }
+                    SubtitleEngineStatus.ERROR,
+                    SubtitleEngineStatus.STOPPED,
+                    SubtitleEngineStatus.IDLE,
+                    -> {
+                        _liveSubtitleActive.value = false
+                    }
+                    else -> Unit
                 }
             }
         }
@@ -123,10 +168,13 @@ class PlayerViewModel @Inject constructor(
     }
 
     suspend fun startLiveSubtitle() {
-        when (val startResult = subtitleEngine.start()) {
+        val provider = SubtitleProvider.fromPreference(
+            preferencesRepository.playerPreferences.value.liveSubtitleProvider,
+        )
+        when (val startResult = subtitleEngine.start(provider)) {
             SubtitleStartResult.Started -> {
                 _liveSubtitleActive.value = true
-                _subtitleNotice.value = CONNECTING_TO_SONIOX_MESSAGE
+                _subtitleNotice.value = CONNECTING_TO_SUBTITLE_PROVIDER_MESSAGE
                 preferencesRepository.updatePlayerPreferences {
                     it.copy(liveSubtitleEnabled = true)
                 }

@@ -14,9 +14,9 @@ class AudioBatcher @Inject constructor() {
         private const val TARGET_SAMPLE_RATE = 16000
         private const val TARGET_CHANNELS = 1
         private const val BYTES_PER_SAMPLE = 2 // s16le
-        private const val BATCH_DURATION_MS = 200
-        // 16000 Hz × 2 bytes × 0.2s = 6400 bytes
-        private const val BATCH_SIZE_BYTES = TARGET_SAMPLE_RATE * BYTES_PER_SAMPLE * BATCH_DURATION_MS / 1000
+        const val DEFAULT_BATCH_DURATION_MS = 200
+        private const val MAX_BATCH_DURATION_MS = DEFAULT_BATCH_DURATION_MS
+        private const val MAX_BATCH_SIZE_BYTES = TARGET_SAMPLE_RATE * BYTES_PER_SAMPLE * MAX_BATCH_DURATION_MS / 1000
     }
 
     interface Listener {
@@ -24,10 +24,19 @@ class AudioBatcher @Inject constructor() {
     }
 
     private var listener: Listener? = null
-    private val buffer = ByteBuffer.allocate(BATCH_SIZE_BYTES * 2).order(ByteOrder.LITTLE_ENDIAN)
+    private var batchSizeBytes = batchSizeBytesFor(DEFAULT_BATCH_DURATION_MS)
+    private val buffer = ByteBuffer.allocate(MAX_BATCH_SIZE_BYTES * 2).order(ByteOrder.LITTLE_ENDIAN)
 
     fun setListener(listener: Listener) {
         this.listener = listener
+    }
+
+    fun setBatchDurationMs(durationMs: Int) {
+        synchronized(buffer) {
+            flush()
+            val boundedDurationMs = durationMs.coerceIn(1, MAX_BATCH_DURATION_MS)
+            batchSizeBytes = batchSizeBytesFor(boundedDurationMs)
+        }
     }
 
     /**
@@ -45,7 +54,7 @@ class AudioBatcher @Inject constructor() {
                 buffer.put(processedData, offset, toCopy)
                 offset += toCopy
 
-                if (buffer.position() >= BATCH_SIZE_BYTES) {
+                if (buffer.position() >= batchSizeBytes) {
                     flushBatch()
                 }
             }
@@ -131,5 +140,9 @@ class AudioBatcher @Inject constructor() {
         }
 
         return output
+    }
+
+    private fun batchSizeBytesFor(durationMs: Int): Int {
+        return TARGET_SAMPLE_RATE * BYTES_PER_SAMPLE * durationMs / 1000
     }
 }

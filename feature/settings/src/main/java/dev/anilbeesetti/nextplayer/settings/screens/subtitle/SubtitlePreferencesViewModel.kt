@@ -7,8 +7,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.model.Font
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
+import dev.anilbeesetti.nextplayer.core.subtitle.engine.GeminiLiveWebSocketClient
 import dev.anilbeesetti.nextplayer.core.subtitle.engine.SonioxWebSocketClient
+import dev.anilbeesetti.nextplayer.core.subtitle.model.GeminiLanguageMapper
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleDisplayMode
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleProvider
 import dev.anilbeesetti.nextplayer.core.subtitle.storage.SecureApiKeyStorage
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +24,7 @@ class SubtitlePreferencesViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val secureApiKeyStorage: SecureApiKeyStorage,
     private val sonioxWebSocketClient: SonioxWebSocketClient,
+    private val geminiLiveWebSocketClient: GeminiLiveWebSocketClient,
 ) : ViewModel() {
 
     private val uiStateInternal = MutableStateFlow(
@@ -45,6 +49,7 @@ class SubtitlePreferencesViewModel @Inject constructor(
     fun onEvent(event: SubtitlePreferencesUiEvent) {
         when (event) {
             is SubtitlePreferencesUiEvent.ShowDialog -> showDialog(event.value)
+            is SubtitlePreferencesUiEvent.UpdateSubtitleProvider -> updateSubtitleProvider(event.value)
             is SubtitlePreferencesUiEvent.UpdateSubtitleLanguage -> updateSubtitleLanguage(event.value)
             is SubtitlePreferencesUiEvent.UpdateSubtitleFont -> updateSubtitleFont(event.value)
             SubtitlePreferencesUiEvent.ToggleSubtitleTextBold -> toggleSubtitleTextBold()
@@ -55,6 +60,7 @@ class SubtitlePreferencesViewModel @Inject constructor(
             SubtitlePreferencesUiEvent.ToggleUseSystemCaptionStyle -> toggleUseSystemCaptionStyle()
             is SubtitlePreferencesUiEvent.UpdateTranslationSourceLanguage -> updateTranslationSourceLanguage(event.value)
             is SubtitlePreferencesUiEvent.UpdateTranslationTargetLanguage -> updateTranslationTargetLanguage(event.value)
+            is SubtitlePreferencesUiEvent.UpdateGeminiTargetLanguage -> updateGeminiTargetLanguage(event.value)
             is SubtitlePreferencesUiEvent.UpdateDisplayMode -> updateDisplayMode(event.value)
             is SubtitlePreferencesUiEvent.UpdateApiKeyInput -> updateApiKeyInput(event.value)
             SubtitlePreferencesUiEvent.ToggleApiKeyVisibility -> toggleApiKeyVisibility()
@@ -63,9 +69,13 @@ class SubtitlePreferencesViewModel @Inject constructor(
         }
     }
 
-    private fun loadStoredApiKey() {
+    private fun loadStoredApiKey(
+        provider: SubtitleProvider = SubtitleProvider.fromPreference(
+            preferencesRepository.playerPreferences.value.liveSubtitleProvider,
+        ),
+    ) {
         uiStateInternal.update {
-            it.copy(apiKeyInput = secureApiKeyStorage.getApiKey().orEmpty())
+            it.copy(apiKeyInput = secureApiKeyStorage.getApiKey(provider).orEmpty())
         }
     }
 
@@ -151,10 +161,38 @@ class SubtitlePreferencesViewModel @Inject constructor(
         }
     }
 
+    private fun updateSubtitleProvider(value: SubtitleProvider) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(liveSubtitleProvider = value.name)
+            }
+            uiStateInternal.update {
+                it.copy(
+                    apiKeyInput = secureApiKeyStorage.getApiKey(value).orEmpty(),
+                    apiKeyValidationState = ApiKeyValidationState.Idle,
+                )
+            }
+        }
+    }
+
+    private fun updateGeminiTargetLanguage(value: String) {
+        val languageCode = GeminiLanguageMapper.toTargetLanguageCode(value)
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(geminiTargetLanguage = languageCode)
+            }
+        }
+    }
+
     private fun updateDisplayMode(value: SubtitleDisplayMode) {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
-                it.copy(displayMode = value.name)
+                val selectedProvider = SubtitleProvider.fromPreference(it.liveSubtitleProvider)
+                if (selectedProvider == SubtitleProvider.GEMINI_LIVE) {
+                    it.copy(geminiDisplayMode = value.name)
+                } else {
+                    it.copy(displayMode = value.name)
+                }
             }
         }
     }
@@ -188,11 +226,20 @@ class SubtitlePreferencesViewModel @Inject constructor(
                 it.copy(apiKeyValidationState = ApiKeyValidationState.Validating)
             }
 
-            val validationError = sonioxWebSocketClient.validateApiKey(apiKey)
+            val selectedProvider = SubtitleProvider.fromPreference(
+                preferencesRepository.playerPreferences.value.liveSubtitleProvider,
+            )
+            val validationError = when (selectedProvider) {
+                SubtitleProvider.SONIOX -> sonioxWebSocketClient.validateApiKey(apiKey)
+                SubtitleProvider.GEMINI_LIVE -> geminiLiveWebSocketClient.validateApiKey(apiKey)
+            }
             if (validationError == null) {
-                secureApiKeyStorage.saveApiKey(apiKey)
+                secureApiKeyStorage.saveApiKey(selectedProvider, apiKey)
                 preferencesRepository.updatePlayerPreferences {
-                    it.copy(hasApiKeyConfigured = true)
+                    when (selectedProvider) {
+                        SubtitleProvider.SONIOX -> it.copy(hasApiKeyConfigured = true)
+                        SubtitleProvider.GEMINI_LIVE -> it.copy(hasGoogleApiKeyConfigured = true)
+                    }
                 }
                 uiStateInternal.update {
                     it.copy(
@@ -209,7 +256,10 @@ class SubtitlePreferencesViewModel @Inject constructor(
     }
 
     private fun clearApiKey() {
-        secureApiKeyStorage.clearApiKey()
+        val selectedProvider = SubtitleProvider.fromPreference(
+            preferencesRepository.playerPreferences.value.liveSubtitleProvider,
+        )
+        secureApiKeyStorage.clearApiKey(selectedProvider)
         uiStateInternal.update {
             it.copy(
                 apiKeyInput = "",
@@ -218,7 +268,10 @@ class SubtitlePreferencesViewModel @Inject constructor(
         }
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
-                it.copy(hasApiKeyConfigured = false)
+                when (selectedProvider) {
+                    SubtitleProvider.SONIOX -> it.copy(hasApiKeyConfigured = false)
+                    SubtitleProvider.GEMINI_LIVE -> it.copy(hasGoogleApiKeyConfigured = false)
+                }
             }
         }
     }
@@ -241,16 +294,19 @@ sealed interface ApiKeyValidationState {
 }
 
 sealed interface SubtitlePreferenceDialog {
+    data object ProviderDialog : SubtitlePreferenceDialog
     data object SubtitleLanguageDialog : SubtitlePreferenceDialog
     data object SubtitleFontDialog : SubtitlePreferenceDialog
     data object SubtitleEncodingDialog : SubtitlePreferenceDialog
     data object SourceLanguageDialog : SubtitlePreferenceDialog
     data object TargetLanguageDialog : SubtitlePreferenceDialog
+    data object GeminiTargetLanguageDialog : SubtitlePreferenceDialog
     data object DisplayModeDialog : SubtitlePreferenceDialog
 }
 
 sealed interface SubtitlePreferencesUiEvent {
     data class ShowDialog(val value: SubtitlePreferenceDialog?) : SubtitlePreferencesUiEvent
+    data class UpdateSubtitleProvider(val value: SubtitleProvider) : SubtitlePreferencesUiEvent
     data class UpdateSubtitleLanguage(val value: String) : SubtitlePreferencesUiEvent
     data class UpdateSubtitleFont(val value: Font) : SubtitlePreferencesUiEvent
     data object ToggleSubtitleTextBold : SubtitlePreferencesUiEvent
@@ -261,6 +317,7 @@ sealed interface SubtitlePreferencesUiEvent {
     data object ToggleUseSystemCaptionStyle : SubtitlePreferencesUiEvent
     data class UpdateTranslationSourceLanguage(val value: String) : SubtitlePreferencesUiEvent
     data class UpdateTranslationTargetLanguage(val value: String) : SubtitlePreferencesUiEvent
+    data class UpdateGeminiTargetLanguage(val value: String) : SubtitlePreferencesUiEvent
     data class UpdateDisplayMode(val value: SubtitleDisplayMode) : SubtitlePreferencesUiEvent
     data class UpdateApiKeyInput(val value: String) : SubtitlePreferencesUiEvent
     data object ToggleApiKeyVisibility : SubtitlePreferencesUiEvent

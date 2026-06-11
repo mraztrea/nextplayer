@@ -9,10 +9,10 @@
 
 **Purpose**: Prepare the implementation workspace and record required impact analysis before code edits.
 
-- [ ] T001 Create implementation workflow note in `memory_bank/wf_20260611_gemini_live_translation.md`
-- [ ] T002 Run GitNexus impact analysis for `SubtitleEngine`, `SubtitlePreferencesViewModel`, `PlayerViewModel`, `SubtitleAudioProcessor`, and record findings in `memory_bank/wf_20260611_gemini_live_translation.md`
-- [ ] T003 [P] Create Gemini engine test fixture file in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveTestFixtures.kt`
-- [ ] T004 [P] Create settings test directory and fixture file in `feature/settings/src/test/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesTestFixtures.kt`
+- [X] T001 Create implementation workflow note in `memory_bank/wf_20260611_gemini_live_translation.md`
+- [X] T002 Run GitNexus impact analysis for `SubtitleEngine`, `SubtitlePreferencesViewModel`, `PlayerViewModel`, `SubtitleAudioProcessor`, and record findings in `memory_bank/wf_20260611_gemini_live_translation.md`
+- [X] T003 [P] Create Gemini engine test fixture file in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveTestFixtures.kt`
+- [X] T004 [P] Create settings test directory and fixture file in `feature/settings/src/test/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesTestFixtures.kt`
 
 ---
 
@@ -22,17 +22,17 @@
 
 **CRITICAL**: No user story work should begin until this phase is complete.
 
-- [ ] T005 [P] Add `SubtitleProvider` enum in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/SubtitleProvider.kt`
-- [ ] T006 [P] Add `CredentialValidationState` enum in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/CredentialValidationState.kt`
-- [ ] T007 [P] Add Gemini session and transcript models in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/GeminiSessionConfig.kt`
-- [ ] T008 [P] Add `GeminiLiveError` and error category models in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/GeminiLiveError.kt`
-- [ ] T009 Extend `SubtitleSegment` with provider, media id, display text, language, and provisional/final metadata in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/SubtitleSegment.kt`
-- [ ] T010 Add provider selection and Gemini preferences fields in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/ApplicationPreferences.kt`
-- [ ] T011 Update app preferences persistence for provider, Gemini target language, and display mode in `core/datastore/src/main/java/dev/anilbeesetti/nextplayer/core/datastore/serializer/ApplicationPreferencesSerializer.kt`
-- [ ] T012 Update app preference data accessors for provider and Gemini settings in `core/datastore/src/main/java/dev/anilbeesetti/nextplayer/core/datastore/datasource/AppPreferencesDataSource.kt`
-- [ ] T013 Extend secure provider key slots for Google and Soniox keys in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/storage/SecureApiKeyStorage.kt`
-- [ ] T014 Add shared provider abstraction in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/RealtimeSubtitleProvider.kt`
-- [ ] T015 Update Hilt bindings for provider factory/storage dependencies in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/di/SubtitleModule.kt`
+- [X] T005 [P] Add `SubtitleProvider` enum in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/SubtitleProvider.kt`
+- [X] T006 [P] Add `CredentialValidationState` enum in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/CredentialValidationState.kt`
+- [X] T007 [P] Add Gemini session and transcript models in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/GeminiSessionConfig.kt`
+- [X] T008 [P] Add `GeminiLiveError` and error category models in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/GeminiLiveError.kt`
+- [X] T009 Extend `SubtitleSegment` with provider, media id, display text, language, and provisional/final metadata in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/SubtitleSegment.kt`
+- [X] T010 Add provider selection and Gemini preferences fields in `core/model/src/main/java/dev/anilbeesetti/nextplayer/core/model/PlayerPreferences.kt`
+- [X] T011 Verify player preferences persistence for provider, Gemini target language, and display mode in `core/datastore/src/main/java/dev/anilbeesetti/nextplayer/core/datastore/serializer/PlayerPreferencesSerializer.kt`
+- [X] T012 Verify player preference data accessors for provider and Gemini settings in `core/datastore/src/main/java/dev/anilbeesetti/nextplayer/core/datastore/datasource/PlayerPreferencesDataSource.kt`
+- [X] T013 Extend secure provider key slots for Google and Soniox keys in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/storage/SecureApiKeyStorage.kt`
+- [X] T014 Add shared provider abstraction in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/RealtimeSubtitleProvider.kt`
+- [X] T015 Verify Hilt bindings for provider factory/storage dependencies in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/di/SubtitleModule.kt`
 
 **Checkpoint**: Shared models, persistence, storage, and DI compile without changing user-visible behavior.
 
@@ -46,21 +46,21 @@
 
 ### Tests for User Story 1
 
-- [ ] T016 [P] [US1] Add setup/audio message builder tests in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveMessageBuilderTest.kt`
-- [ ] T017 [P] [US1] Add transcript parser tests for input/output transcript events in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveTranscriptParserTest.kt`
-- [ ] T018 [P] [US1] Add display-mode mapping tests for translation-only, bilingual, and original-only segments in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiSubtitleProviderTest.kt`
+- [X] T016 [P] [US1] Add setup/audio message builder tests in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveMessageBuilderTest.kt`
+- [X] T017 [P] [US1] Add transcript parser tests for input/output transcript events in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveTranscriptParserTest.kt`
+- [X] T018 [P] [US1] Add display-mode mapping tests for translation-only, bilingual, and original-only segments in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiSubtitleProviderTest.kt`
 
 ### Implementation for User Story 1
 
-- [ ] T019 [US1] Implement Gemini setup and realtime audio JSON message builder in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveMessageBuilder.kt`
-- [ ] T020 [US1] Implement Gemini transcript event parser in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveTranscriptParser.kt`
-- [ ] T021 [US1] Implement OkHttp Gemini Live WebSocket client in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveWebSocketClient.kt`
-- [ ] T022 [US1] Implement Gemini provider adapter that maps transcript events to subtitle segments in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiSubtitleProvider.kt`
-- [ ] T023 [US1] Update `SubtitleEngine` to delegate start/stop/status/segment flows by selected provider in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt`
-- [ ] T024 [US1] Update audio batching to support Gemini 100 ms chunk target while preserving Soniox behavior in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/AudioBatcher.kt`
-- [ ] T025 [US1] Update player start/stop flow to pass selected provider into subtitle engine in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
-- [ ] T026 [US1] Update subtitle overlay rendering for Gemini `displayText` and provisional/final state in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/ui/SubtitleOverlay.kt`
-- [ ] T027 [US1] Record US1 manual verification result in `memory_bank/wf_20260611_gemini_live_translation.md`
+- [X] T019 [US1] Implement Gemini setup and realtime audio JSON message builder in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveMessageBuilder.kt`
+- [X] T020 [US1] Implement Gemini transcript event parser in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveTranscriptParser.kt`
+- [X] T021 [US1] Implement OkHttp Gemini Live WebSocket client in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveWebSocketClient.kt`
+- [X] T022 [US1] Implement Gemini provider adapter that maps transcript events to subtitle segments in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiSubtitleProvider.kt`
+- [X] T023 [US1] Update `SubtitleEngine` to delegate start/stop/status/segment flows by selected provider in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt`
+- [X] T024 [US1] Update audio batching to support Gemini 100 ms chunk target while preserving Soniox behavior in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/AudioBatcher.kt`
+- [X] T025 [US1] Update player start/stop flow to pass selected provider into subtitle engine in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
+- [X] T026 [US1] Update subtitle overlay rendering for Gemini `displayText` and provisional/final state in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/ui/SubtitleOverlay.kt`
+- [X] T027 [US1] Record US1 manual verification result in `memory_bank/wf_20260611_gemini_live_translation.md`
 
 **Checkpoint**: US1 is independently testable with a preconfigured Google key and target language.
 
@@ -74,18 +74,18 @@
 
 ### Tests for User Story 2
 
-- [ ] T028 [P] [US2] Add provider/key/language persistence tests in `feature/settings/src/test/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesViewModelTest.kt`
-- [ ] T029 [P] [US2] Add language alias mapping tests for `vn -> vi` and `en -> en` in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/model/GeminiLanguageMapperTest.kt`
+- [X] T028 [P] [US2] Add provider/key/language persistence tests in `feature/settings/src/test/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesViewModelTest.kt`
+- [X] T029 [P] [US2] Add language alias mapping tests for `vn -> vi` and `en -> en` in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/model/GeminiLanguageMapperTest.kt`
 
 ### Implementation for User Story 2
 
-- [ ] T030 [US2] Implement Gemini language alias mapper in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/GeminiLanguageMapper.kt`
-- [ ] T031 [US2] Extend subtitle preferences UI state and events for provider, Google API Key, Gemini language, and display mode in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesViewModel.kt`
-- [ ] T032 [US2] Add provider selector, Google API Key input, Gemini target language selector, and display mode controls in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesScreen.kt`
-- [ ] T033 [US2] Add user-facing strings for Gemini provider, Google API Key, language aliases, and errors in `core/ui/src/main/res/values/strings.xml`
-- [ ] T034 [US2] Update settings navigation entry if needed for subtitle provider configuration in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/navigation/SubtitlePreferencesNavigation.kt`
-- [ ] T035 [US2] Update player UI to expose active provider selection or provider-aware subtitle toggle in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/MediaPlayerScreen.kt`
-- [ ] T036 [US2] Record US2 manual persistence verification result in `memory_bank/wf_20260611_gemini_live_translation.md`
+- [X] T030 [US2] Implement Gemini language alias mapper in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/GeminiLanguageMapper.kt`
+- [X] T031 [US2] Extend subtitle preferences UI state and events for provider, Google API Key, Gemini language, and display mode in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesViewModel.kt`
+- [X] T032 [US2] Add provider selector, Google API Key input, Gemini target language selector, and display mode controls in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/screens/subtitle/SubtitlePreferencesScreen.kt`
+- [X] T033 [US2] Add user-facing strings for Gemini provider, Google API Key, language aliases, and errors in `core/ui/src/main/res/values/strings.xml`
+- [X] T034 [US2] Update settings navigation entry if needed for subtitle provider configuration in `feature/settings/src/main/java/dev/anilbeesetti/nextplayer/settings/navigation/SubtitlePreferencesNavigation.kt`
+- [X] T035 [US2] Update player UI to expose active provider selection or provider-aware subtitle toggle in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/MediaPlayerScreen.kt`
+- [X] T036 [US2] Record US2 manual persistence verification result in `memory_bank/wf_20260611_gemini_live_translation.md`
 
 **Checkpoint**: US2 is independently testable from Settings without requiring a live video session.
 
@@ -99,17 +99,17 @@
 
 ### Tests for User Story 3
 
-- [ ] T037 [P] [US3] Add Gemini flush regression test in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/SubtitleAudioProcessorTest.kt`
-- [ ] T038 [P] [US3] Add reset trigger tests for seek/media/provider/language changes in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/session/SubtitleSessionManagerTest.kt`
+- [X] T037 [P] [US3] Add Gemini flush regression test in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/SubtitleAudioProcessorTest.kt`
+- [X] T038 [P] [US3] Add reset trigger tests for seek/media/provider/language changes in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/session/SubtitleSessionManagerTest.kt`
 
 ### Implementation for User Story 3
 
-- [ ] T039 [US3] Update session reset manager for Gemini provider reset triggers in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/session/SubtitleSessionManager.kt`
-- [ ] T040 [US3] Update reset scheduler to rotate or close Gemini sessions without keeping stale transcripts in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/session/SessionResetScheduler.kt`
-- [ ] T041 [US3] Ensure audio processor drops partial Gemini batches on flush/seek in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/SubtitleAudioProcessor.kt`
-- [ ] T042 [US3] Ensure player service reset hook covers Gemini sessions on discontinuity/media change in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/service/PlayerService.kt`
-- [ ] T043 [US3] Clear Gemini provisional and display segments on player stop/seek/provider switch in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
-- [ ] T044 [US3] Record US3 seek/media-change verification result in `memory_bank/wf_20260611_gemini_live_translation.md`
+- [X] T039 [US3] Update session reset manager for Gemini provider reset triggers in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/session/SubtitleSessionManager.kt`
+- [X] T040 [US3] Update reset scheduler to rotate or close Gemini sessions without keeping stale transcripts in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/session/SessionResetScheduler.kt`
+- [X] T041 [US3] Ensure audio processor drops partial Gemini batches on flush/seek in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/audio/SubtitleAudioProcessor.kt`
+- [X] T042 [US3] Ensure player service reset hook covers Gemini sessions on discontinuity/media change in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/service/PlayerService.kt`
+- [X] T043 [US3] Clear Gemini provisional and display segments on player stop/seek/provider switch in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
+- [X] T044 [US3] Record US3 seek/media-change verification result in `memory_bank/wf_20260611_gemini_live_translation.md`
 
 **Checkpoint**: US3 can be tested without changing settings UI once Gemini is configured.
 
@@ -123,19 +123,19 @@
 
 ### Tests for User Story 4
 
-- [ ] T045 [P] [US4] Add Gemini error mapper tests for missing key, invalid key, quota, network, unsupported language, and timeout in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveErrorMapperTest.kt`
-- [ ] T046 [P] [US4] Add diagnostic log redaction tests in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleDiagnosticLoggerTest.kt`
-- [ ] T047 [P] [US4] Add no-auto-fallback provider behavior tests in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngineProviderTest.kt`
+- [X] T045 [P] [US4] Add Gemini error mapper tests for missing key, invalid key, quota, network, unsupported language, and timeout in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveErrorMapperTest.kt`
+- [X] T046 [P] [US4] Add diagnostic log redaction tests in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleDiagnosticLoggerTest.kt`
+- [X] T047 [P] [US4] Add no-auto-fallback provider behavior tests in `core/subtitle/src/test/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngineProviderTest.kt`
 
 ### Implementation for User Story 4
 
-- [ ] T048 [US4] Implement Gemini error category mapper in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveErrorMapper.kt`
-- [ ] T049 [US4] Extend subtitle engine status for not configured, connecting, translating, resetting, and Gemini error states in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/SubtitleEngineStatus.kt`
-- [ ] T050 [US4] Implement redacted diagnostic logging helper with metadata-only fields in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleDiagnosticLogger.kt`
-- [ ] T051 [US4] Update subtitle engine to keep selected Gemini provider on errors and prevent Soniox auto-fallback in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt`
-- [ ] T052 [US4] Update player notices for Gemini processing/error states in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
-- [ ] T053 [US4] Update player screen to show actionable Gemini notices without blocking playback in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/MediaPlayerScreen.kt`
-- [ ] T054 [US4] Record US4 error/privacy verification result in `memory_bank/wf_20260611_gemini_live_translation.md`
+- [X] T048 [US4] Implement Gemini error category mapper in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/GeminiLiveErrorMapper.kt`
+- [X] T049 [US4] Extend subtitle engine status for not configured, connecting, translating, resetting, and Gemini error states in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/model/SubtitleEngineStatus.kt`
+- [X] T050 [US4] Implement redacted diagnostic logging helper with metadata-only fields in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleDiagnosticLogger.kt`
+- [X] T051 [US4] Update subtitle engine to keep selected Gemini provider on errors and prevent Soniox auto-fallback in `core/subtitle/src/main/java/dev/anilbeesetti/nextplayer/core/subtitle/engine/SubtitleEngine.kt`
+- [X] T052 [US4] Update player notices for Gemini processing/error states in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/PlayerViewModel.kt`
+- [X] T053 [US4] Update player screen to show actionable Gemini notices without blocking playback in `feature/player/src/main/java/dev/anilbeesetti/nextplayer/feature/player/MediaPlayerScreen.kt`
+- [X] T054 [US4] Record US4 error/privacy verification result in `memory_bank/wf_20260611_gemini_live_translation.md`
 
 **Checkpoint**: US4 can be tested with controlled error inputs and log inspection.
 
@@ -145,10 +145,10 @@
 
 **Purpose**: Cross-story cleanup, docs, and verification.
 
-- [ ] T055 [P] Update quickstart implementation notes if code paths differ from plan in `specs/003-gemini-live-translation/quickstart.md`
-- [ ] T056 [P] Update task completion evidence in `memory_bank/wf_20260611_gemini_live_translation.md`
-- [ ] T057 Run Gradle verification command and record output summary in `memory_bank/wf_20260611_gemini_live_translation.md`
-- [ ] T058 Run `gitnexus_detect_changes()` and record affected symbols/flows in `memory_bank/wf_20260611_gemini_live_translation.md`
+- [X] T055 [P] Update quickstart implementation notes if code paths differ from plan in `specs/003-gemini-live-translation/quickstart.md`
+- [X] T056 [P] Update task completion evidence in `memory_bank/wf_20260611_gemini_live_translation.md`
+- [X] T057 Run Gradle verification command and record output summary in `memory_bank/wf_20260611_gemini_live_translation.md`
+- [X] T058 Run `gitnexus_detect_changes()` and record affected symbols/flows in `memory_bank/wf_20260611_gemini_live_translation.md`
 
 ---
 

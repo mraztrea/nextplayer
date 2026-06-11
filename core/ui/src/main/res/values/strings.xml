@@ -78,8 +78,13 @@
     <string name="subtitle">Subtitle</string>
     <string name="translation">Translation</string>
     <string name="live_subtitle">Live subtitle</string>
+    <string name="subtitle_provider">Subtitle provider</string>
+    <string name="soniox_provider">Soniox</string>
+    <string name="gemini_live_provider">Gemini Live</string>
     <string name="soniox_api_key">Soniox API key</string>
     <string name="soniox_api_key_placeholder">Paste your Soniox API key</string>
+    <string name="google_api_key">Google API key</string>
+    <string name="google_api_key_placeholder">Paste your Google API key</string>
     <string name="source_language">Source language</string>
     <string name="target_language">Target language</string>
     <string name="subtitle_display_mode">Display mode</string>

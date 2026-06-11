@@ -86,6 +86,7 @@ import dev.anilbeesetti.nextplayer.feature.player.ui.OverlayView
 import dev.anilbeesetti.nextplayer.feature.player.ui.SubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.ui.VerticalProgressView
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleDisplayMode
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleProvider
 import dev.anilbeesetti.nextplayer.feature.player.ui.SubtitleOverlay
 import dev.anilbeesetti.nextplayer.feature.player.ui.controls.ControlsBottomView
 import dev.anilbeesetti.nextplayer.feature.player.ui.controls.ControlsTopView
@@ -105,7 +106,12 @@ fun MediaPlayerScreen(
     onPlayInBackgroundClick: () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
-    val subtitleDisplayMode = SubtitleDisplayMode.fromPreference(playerPreferences.displayMode)
+    val selectedSubtitleProvider = SubtitleProvider.fromPreference(playerPreferences.liveSubtitleProvider)
+    val subtitleDisplayMode = if (selectedSubtitleProvider == SubtitleProvider.GEMINI_LIVE) {
+        SubtitleDisplayMode.fromPreference(playerPreferences.geminiDisplayMode)
+    } else {
+        SubtitleDisplayMode.fromPreference(playerPreferences.displayMode)
+    }
     val liveSubtitleBottomPadding = if (
         subtitleDisplayMode == SubtitleDisplayMode.TRANSLATION_ONLY &&
         configuration.orientation == Configuration.ORIENTATION_LANDSCAPE

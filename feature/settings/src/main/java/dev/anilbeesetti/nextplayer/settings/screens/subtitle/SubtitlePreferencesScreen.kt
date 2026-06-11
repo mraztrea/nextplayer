@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.Font
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleDisplayMode
+import dev.anilbeesetti.nextplayer.core.subtitle.model.SubtitleProvider
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.ClickablePreferenceItem
 import dev.anilbeesetti.nextplayer.core.ui.components.ListSectionTitle
@@ -80,12 +81,37 @@ private fun SubtitlePreferencesContent(
     val languages = remember { listOf(Pair("None", "")) + LocalesHelper.getAvailableLocales() }
     val autoDetectLabel = stringResource(id = R.string.auto_detect)
     val translationLanguages = remember { LocalesHelper.getAvailableTranslationLanguages() }
+    val geminiTargetLanguages = remember {
+        listOf(
+            "Vietnamese (vn/vi)" to "vi",
+            "English (en)" to "en",
+        )
+    }
     val sourceLanguages = remember(autoDetectLabel, translationLanguages) {
         listOf(autoDetectLabel to PlayerPreferences.DEFAULT_LIVE_SUBTITLE_SOURCE_LANGUAGE) + translationLanguages
     }
     val charsetResource = stringArrayResource(id = R.array.charsets_list)
     val context = LocalContext.current
-    val selectedDisplayMode = SubtitleDisplayMode.fromPreference(uiState.preferences.displayMode)
+    val selectedProvider = SubtitleProvider.fromPreference(uiState.preferences.liveSubtitleProvider)
+    val selectedDisplayMode = if (selectedProvider == SubtitleProvider.GEMINI_LIVE) {
+        SubtitleDisplayMode.fromPreference(uiState.preferences.geminiDisplayMode)
+    } else {
+        SubtitleDisplayMode.fromPreference(uiState.preferences.displayMode)
+    }
+    val hasSelectedProviderApiKey = when (selectedProvider) {
+        SubtitleProvider.SONIOX -> uiState.preferences.hasApiKeyConfigured
+        SubtitleProvider.GEMINI_LIVE -> uiState.preferences.hasGoogleApiKeyConfigured
+    }
+    val apiKeyLabel = if (selectedProvider == SubtitleProvider.GEMINI_LIVE) {
+        R.string.google_api_key
+    } else {
+        R.string.soniox_api_key
+    }
+    val apiKeyPlaceholder = if (selectedProvider == SubtitleProvider.GEMINI_LIVE) {
+        R.string.google_api_key_placeholder
+    } else {
+        R.string.soniox_api_key_placeholder
+    }
     val sourceLanguageDescription = remember(uiState.preferences.sourceLanguage, autoDetectLabel) {
         if (uiState.preferences.sourceLanguage == PlayerPreferences.DEFAULT_LIVE_SUBTITLE_SOURCE_LANGUAGE) {
             autoDetectLabel
@@ -93,17 +119,22 @@ private fun SubtitlePreferencesContent(
             LocalesHelper.getTranslationLanguageDisplayName(uiState.preferences.sourceLanguage)
         }
     }
-    val targetLanguageDescription = remember(uiState.preferences.targetLanguage) {
-        LocalesHelper.getTranslationLanguageDisplayName(uiState.preferences.targetLanguage)
-            .ifBlank { uiState.preferences.targetLanguage }
+    val targetLanguageCode = if (selectedProvider == SubtitleProvider.GEMINI_LIVE) {
+        uiState.preferences.geminiTargetLanguage
+    } else {
+        uiState.preferences.targetLanguage
+    }
+    val targetLanguageDescription = remember(selectedProvider, targetLanguageCode) {
+        LocalesHelper.getTranslationLanguageDisplayName(targetLanguageCode)
+            .ifBlank { targetLanguageCode }
     }
     val apiKeyStatusText = remember(
         uiState.apiKeyValidationState,
-        uiState.preferences.hasApiKeyConfigured,
+        hasSelectedProviderApiKey,
     ) {
         when (val validationState = uiState.apiKeyValidationState) {
             ApiKeyValidationState.Idle -> {
-                if (uiState.preferences.hasApiKeyConfigured) {
+                if (hasSelectedProviderApiKey) {
                     context.getString(R.string.api_key_configured)
                 } else {
                     context.getString(R.string.api_key_not_configured)
@@ -144,6 +175,18 @@ private fun SubtitlePreferencesContent(
                 .padding(horizontal = 16.dp),
         ) {
             ListSectionTitle(text = stringResource(id = R.string.translation))
+            Column(
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+            ) {
+                ClickablePreferenceItem(
+                    title = stringResource(id = R.string.subtitle_provider),
+                    description = selectedProvider.label(),
+                    icon = NextIcons.Caption,
+                    onClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.ProviderDialog)) },
+                    isFirstItem = true,
+                    isLastItem = true,
+                )
+            }
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(28.dp),
@@ -159,8 +202,8 @@ private fun SubtitlePreferencesContent(
                         value = uiState.apiKeyInput,
                         onValueChange = { onEvent(SubtitlePreferencesUiEvent.UpdateApiKeyInput(it)) },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text(text = stringResource(id = R.string.soniox_api_key)) },
-                        placeholder = { Text(text = stringResource(id = R.string.soniox_api_key_placeholder)) },
+                        label = { Text(text = stringResource(id = apiKeyLabel)) },
+                        placeholder = { Text(text = stringResource(id = apiKeyPlaceholder)) },
                         singleLine = true,
                         visualTransformation = if (uiState.isApiKeyVisible) {
                             VisualTransformation.None
@@ -187,7 +230,7 @@ private fun SubtitlePreferencesContent(
                             Text(text = stringResource(id = R.string.validate_and_save_api_key))
                         }
                         TextButton(
-                            enabled = uiState.apiKeyInput.isNotBlank() || uiState.preferences.hasApiKeyConfigured,
+                            enabled = uiState.apiKeyInput.isNotBlank() || hasSelectedProviderApiKey,
                             onClick = { onEvent(SubtitlePreferencesUiEvent.ClearApiKey) },
                         ) {
                             Text(text = stringResource(id = R.string.clear_api_key))
@@ -198,18 +241,30 @@ private fun SubtitlePreferencesContent(
             Column(
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
-                ClickablePreferenceItem(
-                    title = stringResource(id = R.string.source_language),
-                    description = sourceLanguageDescription,
-                    icon = NextIcons.Language,
-                    onClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.SourceLanguageDialog)) },
-                    isFirstItem = true,
-                )
+                if (selectedProvider == SubtitleProvider.SONIOX) {
+                    ClickablePreferenceItem(
+                        title = stringResource(id = R.string.source_language),
+                        description = sourceLanguageDescription,
+                        icon = NextIcons.Language,
+                        onClick = {
+                            onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.SourceLanguageDialog))
+                        },
+                        isFirstItem = true,
+                    )
+                }
                 ClickablePreferenceItem(
                     title = stringResource(id = R.string.target_language),
                     description = targetLanguageDescription,
                     icon = NextIcons.Language,
-                    onClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.TargetLanguageDialog)) },
+                    onClick = {
+                        val dialog = if (selectedProvider == SubtitleProvider.GEMINI_LIVE) {
+                            SubtitlePreferenceDialog.GeminiTargetLanguageDialog
+                        } else {
+                            SubtitlePreferenceDialog.TargetLanguageDialog
+                        }
+                        onEvent(SubtitlePreferencesUiEvent.ShowDialog(dialog))
+                    },
+                    isFirstItem = selectedProvider == SubtitleProvider.GEMINI_LIVE,
                 )
                 ClickablePreferenceItem(
                     title = stringResource(id = R.string.subtitle_display_mode),
@@ -310,6 +365,24 @@ private fun SubtitlePreferencesContent(
 
         uiState.showDialog?.let { showDialog ->
             when (showDialog) {
+                SubtitlePreferenceDialog.ProviderDialog -> {
+                    OptionsDialog(
+                        text = stringResource(id = R.string.subtitle_provider),
+                        onDismissClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(null)) },
+                    ) {
+                        items(SubtitleProvider.entries.toTypedArray()) { provider ->
+                            RadioTextButton(
+                                text = provider.label(),
+                                selected = provider == selectedProvider,
+                                onClick = {
+                                    onEvent(SubtitlePreferencesUiEvent.UpdateSubtitleProvider(provider))
+                                    onEvent(SubtitlePreferencesUiEvent.ShowDialog(null))
+                                },
+                            )
+                        }
+                    }
+                }
+
                 SubtitlePreferenceDialog.SubtitleLanguageDialog -> {
                     OptionsDialog(
                         text = stringResource(id = R.string.preferred_subtitle_lang),
@@ -403,6 +476,24 @@ private fun SubtitlePreferencesContent(
                     }
                 }
 
+                SubtitlePreferenceDialog.GeminiTargetLanguageDialog -> {
+                    OptionsDialog(
+                        text = stringResource(id = R.string.target_language),
+                        onDismissClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(null)) },
+                    ) {
+                        items(geminiTargetLanguages) { option ->
+                            RadioTextButton(
+                                text = option.first,
+                                selected = option.second == uiState.preferences.geminiTargetLanguage,
+                                onClick = {
+                                    onEvent(SubtitlePreferencesUiEvent.UpdateGeminiTargetLanguage(option.second))
+                                    onEvent(SubtitlePreferencesUiEvent.ShowDialog(null))
+                                },
+                            )
+                        }
+                    }
+                }
+
                 SubtitlePreferenceDialog.DisplayModeDialog -> {
                     OptionsDialog(
                         text = stringResource(id = R.string.subtitle_display_mode),
@@ -431,6 +522,14 @@ private fun SubtitleDisplayMode.label(): String {
         SubtitleDisplayMode.ORIGINAL_ONLY -> stringResource(id = R.string.original_only)
         SubtitleDisplayMode.TRANSLATION_ONLY -> stringResource(id = R.string.translation_only)
         SubtitleDisplayMode.BILINGUAL -> stringResource(id = R.string.bilingual)
+    }
+}
+
+@Composable
+private fun SubtitleProvider.label(): String {
+    return when (this) {
+        SubtitleProvider.SONIOX -> stringResource(id = R.string.soniox_provider)
+        SubtitleProvider.GEMINI_LIVE -> stringResource(id = R.string.gemini_live_provider)
     }
 }
 

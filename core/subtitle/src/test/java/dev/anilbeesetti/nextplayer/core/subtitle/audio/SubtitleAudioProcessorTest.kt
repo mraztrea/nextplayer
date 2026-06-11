@@ -53,6 +53,31 @@ class SubtitleAudioProcessorTest {
         assertTrue(batches.isEmpty())
     }
 
+    @Test
+    fun flushDropsPartialGeminiBatchAfterSeek() {
+        val audioBatcher = AudioBatcher()
+        audioBatcher.setBatchDurationMs(GEMINI_BATCH_DURATION_MS)
+        val processor = SubtitleAudioProcessor(audioBatcher)
+        val batches = mutableListOf<ByteArray>()
+        audioBatcher.setListener(
+            object : AudioBatcher.Listener {
+                override fun onAudioBatchReady(pcmData: ByteArray) {
+                    batches += pcmData
+                }
+            },
+        )
+
+        processor.setPrivateField("inputAudioFormat", AudioFormat(SAMPLE_RATE, CHANNEL_COUNT, C.ENCODING_PCM_16BIT))
+        processor.setPrivateField("isActive", true)
+        processor.setEnabled(true)
+
+        processor.queueInput(pcmBuffer(byteCount = PRE_SEEK_BYTES, sampleValue = 1))
+        processor.flush()
+        processor.queueInput(pcmBuffer(byteCount = POST_SEEK_BYTES_BELOW_GEMINI_BATCH, sampleValue = 2))
+
+        assertTrue(batches.isEmpty())
+    }
+
     private fun SubtitleAudioProcessor.setPrivateField(name: String, value: Any) {
         SubtitleAudioProcessor::class.java.getDeclaredField(name).apply {
             isAccessible = true
@@ -75,5 +100,7 @@ class SubtitleAudioProcessorTest {
         private const val BYTES_PER_SAMPLE = 2
         private const val PRE_SEEK_BYTES = 200
         private const val POST_SEEK_BYTES_BELOW_BATCH = 6_200
+        private const val GEMINI_BATCH_DURATION_MS = 100
+        private const val POST_SEEK_BYTES_BELOW_GEMINI_BATCH = 3_000
     }
 }
